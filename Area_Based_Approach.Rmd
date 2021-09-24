@@ -1,0 +1,1303 @@
+---
+title: "Using Facebook Data for Area Based Approach in El Salvador"
+author: "Your name"
+date: " `r format(Sys.Date(),  '%d %B %Y')`"
+always_allow_html: yes
+output:
+  unhcRstyle::unhcr_templ_html:
+    toc: true
+---
+
+<!-- 
+1.1 Provide an introduction that explains the problem statement you are addressing. Why should I be interested in this? 
+1.2 Provide a short explanation of how you plan to address this problem statement (the data used and the methodology employed) 
+1.3 Discuss your current proposed approach/analytic technique you think will address (fully or partially) this problem. 
+1.4 Explain how your analysis will help the consumer of your analysis.
+-->
+
+
+
+People who use Facebook on a mobile device have the option of providing their precise location in order to enable products like Nearby Friends and Find Wi-Fi and to get local content and ads. Different type of products are produced by the [Facebok Data for Good Team]() by aggregating and de-identifying this data. Only people who opt in to Location History and background location collection are included. People with very few location pings in a day are not informative for these trends, and, therefore, we include only those people whose location is observed for a meaningful period of the day.
+
+Central America indeed has an important [number of facebook users]and Facebook data for good has released a few [dataset](https://data.humdata.org/organization/facebook?groups=slv)
+
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = FALSE, 
+                      message = FALSE, 
+                      warning = FALSE, 
+                      collapse = FALSE,
+                      comment = "#>",
+                      fig.align = "center")
+knitr::opts_chunk$set(fig.width = 12, fig.height = 9, fig.retina = 2, fig.align = "center", dev.args = list(pointsize = 11))
+set.seed(1)
+extrafont::loadfonts(quiet=TRUE)
+options(scipen = 999) # turn-off scientific notation like 1e+48
+library(unhcRstyle)
+library(magrittr)
+library(readr)
+library(sf)
+library(purrr)
+library(lubridate)
+library(dplyr)
+library(GADMTools)
+library(tidyverse)
+library(gghighlight)
+library(dplyr)
+library(zoo)
+library(raster)
+library(sf)
+library(glue)
+library(furrr)
+library(rmapshaper)
+library(magick)
+library(magrittr)
+library(cartography)
+library(mapsf)
+library(potential)
+library(SpatialPosition)
+library(sp)
+
+mainDir <- getwd()
+## If you save your analysis under vignette folder...
+mainDirroot <- substring(mainDir, 0 , nchar(mainDir) - 10)
+
+```
+
+
+
+```{r getmap, echo = FALSE, message = FALSE, warning = FALSE, cache =TRUE}
+
+## here we pull our geom3try from GADM 
+
+polyLevel0 <- raster::getData('GADM', country = 'SLV', level = 0)
+## Convert the spatial file to sf to increase speed and ease of plotting
+polyLevel0_sf <- st_as_sf(polyLevel0) %>% 
+  ms_simplify()
+
+## Check what you get
+##plot(sf::st_geometry(polyLevel0_sf))
+
+## Fetch shapefiles 
+
+polyLevel1 <- raster::getData('GADM', country = 'SLV', level = 1)
+## Convert the spatial file to sf to increase speed and ease of plotting
+polyLevel1_sf <- st_as_sf(polyLevel1) %>% 
+  ms_simplify()
+
+
+polyLevel2 <- raster::getData('GADM', country = 'SLV', level = 2)
+## Convert the spatial file to sf to increase speed and ease of plotting
+polyLevel2_sf <- st_as_sf(polyLevel2) %>% 
+  ms_simplify()
+#   st_simplify(preserveTopology=TRUE, dTolerance = .0025)
+
+## Check what you get
+##plot(sf::st_geometry(polyLevel2_sf))
+
+# Read in the detailed GADM shapes  - https://data.biogeo.ucdavis.edu/data/gadm3.6/gadm36_levels_shp.zip 
+#shapes_in <- readRDS(paste0(mainDirroot,"/data-raw/gadm/gadm1_nuts3_counties.Rds"))
+gadm1 <- st_read( paste0(mainDirroot,"/data-raw/gadm/gadm36_1.shp"), quiet = TRUE) #%>% 
+  #ms_simplify()
+##plot(sf::st_geometry(gadm1))
+
+# USCounties <- raster::getData('GADM', country = 'USA', level = 2)
+# levels(as.factor(USCounties$GID_2))
+# Get the maps from the tigris package
+library(tigris)
+counties_map <- tigris::counties(cb = TRUE) %>% 
+  st_as_sf()  %>% 
+  st_transform(crs=4326)  %>% 
+  #st_transform(crs("+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"))  %>% 
+  mutate(GID_1 = paste0("USA",STATEFP, COUNTYFP),
+         NAME_1 = NAME)  %>% 
+  ### Remov Hawai & Alaska, Guama , Samoa, Virgin islan..
+  filter( !(STATEFP %in% c("15", "02", "60", "66", "69", "78"))) %>% 
+  #select(GID_1, NAME_1) %>%
+  ms_simplify()
+
+counties_map <- counties_map[ , c("GID_1", "NAME_1", "geometry")]
+
+#levels(as.factor(counties_map$STATEFP))
+
+#plot(sf::st_geometry(counties_map))
+
+##Set up the tehme for all maps below! 
+mapsf::mf_theme(bg = "#dfdfe5", 
+                fg = "#0072BC", 
+                # bg = "#cdd2d4", "#faebd7ff",  "#cdd2d4",
+                mar = c(0,0,1.2,0),
+                #font = "Lato",
+                tab = FALSE)
+
+
+
+```
+
+# Theoretical Framework
+
+https://dataforgood.facebook.com/dfg/docs/tutorial-identification-of-at-risk-populations 
+
+In the context of migration statistics, forced displacement is often analyzed with the prism of [push and pull factors](https://immigrationforum.org/article/push-or-pull-factors-what-drives-central-american-migrants-to-the-u-s/).
+
+
+|                                                                                                | **Push Factor** (Mitigated by intervention to address root causes within countries of origin)         | **Pull Factor** (Mitigated by migration & Asylum policies of receiving countries)  |
+|------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
+| **Economic Dimension** (Addressed by programme in relation with development & poverty alleviation) | Lack of public services, Unemployement, Overpopulation                                                | More jobs, Better jobs, Higher wages,  promise of a “better individual life”       |
+| **Social Dimension** (Addressed by programme in relation with protection)                          | Violence, insecurity, intolerance towards certain groups, active political or religious persecution,  | Safety, tolerance, freedom                                                         |
+| **Environmental Dimension** (Addressed by programme in relation with resilience & sustainability) | Climate change, natural disasters                                                                     | More livable environment                                                           |
+
+raditional data sources are often
+outdated or lacking appropriate disaggregation. As a remedy,
+satellite imagery has recently become prominent in obtain-
+ing geographically-fine-grained and up-to-date poverty esti-
+mates. Satellite data can pick up signals of economic activity
+by detecting light at night, it can pick up development sta-
+tus by detecting infrastructure such as roads, and it can pick
+up signals for individual household wealth by detecting dif-
+ferent building footprints and roof types. It can, however, not
+look inside the households and pick up signals from individ-
+uals. On the other hand, alternative data sources such as au-
+dience estimates from Facebook’s advertising platform pro-
+vide insights into the devices and internet connection types
+used by individuals in different locations. 
+
+New sensors and abilities to capture flow of information from social medias can help capturing those different dimensions at subnational scale through grid level information:
+
+Economics:
+ - Connectedness (Facebook)
+ - Weighted Relative Wealth Index (Facebook)
+ - Public Services Catchment area (OSM)
+ 
+ Environment:
+ - Agricultural drought frequency Index (FAO) - http://www.fao.org/giews/earthobservation/country/index.jsp?code=SLV&lang=en
+ - Climatic Natural Risk - Flood and Cyclone  (Prevention Web)
+ - Geologic Natural Risk - Earthquake and Volcano  (Prevention Web)
+
+Social: 
+ - Population Dependency Ratio (Facebook)
+ - Population movement change (Facebook)
+ - Violence (ACLED)
+ 
+Information is then compiled and aggregated at admin level 2.
+Composite Indicators are then created
+Different areas are then grouped together based on the values from those composite indicators.
+
+The advantage of this approach is compared to more sophisticaded index like [Inform Colombia](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Subnational-Risk/Colombia) is mostly around simplicity:
+- Level of granularity
+- Data Consistently and freely available worldwide
+- Sensor based indicators are potentially less sensitive to political pressure
+- Can be used in multiple countries easily
+- a be fully automated and audited through reproducible analysis script
+
+The resulting information can complement other traditional source of information both on quantitative (Household Survey) and qualitative (Focus Group Discussions) side.
+
+
+# Calculating Population Weighted Relative Wealth Index
+
+as described in the this [tutorial](https://dataforgood.facebook.com/dfg/docs/tutorial-calculating-population-weighted-relative-wealth-index) 
+
+  * Determine which administrative unit contains the centroid of each RWI tile  
+  
+  * Calculate the bing tile quadkey at zoom level 14 for each point in the population density dataset and sum the population per level 14 tile  
+  
+  * Determine which zoom level 14 (~2.4km bing tile) corresponds to each of the smaller 30m population density tiles, and calculate the sum of population within each zoom level 14 tile.  
+  
+  * Calculate the total population in each administrative region using the population density dataset  
+  
+  * Calculate a population derived weight for each zoom level 14 RWI tile  
+  
+  * Use the weight value to calculate a weighted RWI value and aggregate to the administrative unit level
+  
+```{r getdatapop, echo = FALSE, message = FALSE, warning = FALSE}
+
+population <-    read.csv(paste0(mainDirroot,"/data-raw/wealth/population_slv_2018-10-01.csv")) 
+
+# population <-   rbind(read.csv(paste0(mainDirroot,"/data-raw/wealth/population_slv_2018-10-01.csv")) ,
+#                   read.csv(paste0(mainDirroot,"/data-raw/wealth/population_hnd_2018-10-01.csv")),
+#                   read.csv(paste0(mainDirroot,"/data-raw/wealth/gtm_general_2020.csv")),
+#                   read.csv(paste0(mainDirroot,"/data-raw/wealth/population_mex_2018-10-01.csv"))
+#                  )                 
+                 
+populationsp <- st_as_sf(population, coords = c("longitude", "latitude"), crs = 4326)
+
+world <- st_as_sf(world.spdf)
+# Discretize the variable
+bv <- quantile(population$population_2020, seq(from = 0, to = 1, length.out = 9))
+# Draw the map
+# Set a color palette
+pal <- mf_get_pal(n = 9, palette = "RdPu", rev = TRUE)
+```
+
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+
+
+mapsf::mf_init(populationsp)
+mapsf::mf_map(world, col = "#f5f5f3ff", 
+              border = "#a9b3b4ff", add = TRUE)
+# Map the regional GDP per capita
+mapsf::mf_map(x = populationsp, 
+              var = "population_2020", 
+              type = "choro",
+       leg_pos = "topright",
+       breaks = bv, 
+       pal = pal, 
+       border = NA, 
+       leg_title = "Population Density",
+     #  leg_val_rnd = -2, 
+       add = TRUE)
+mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
+mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+# Set a layout
+mapsf::mf_title(txt = "Population Density in El Salvador")
+mapsf::mf_credits(txt = "Source: Facebook Data For Good", 
+           bg = "#ffffff80")
+
+
+```
+
+```{r}
+
+# 
+# p <- ggplot(st_transform(populationsp, "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")) +
+#       geom_sf(aes(fill = population_2020), 
+#               colour="#DADADA", 
+#               size=0.25) +
+#       #scale_fill_brewer(palette = "RdPu", na.value="#F5F5F5", drop=FALSE) +
+#   
+#       labs(title = "Population Density in El Salvador" ,
+#            subtitle = "As of August 2018",
+#            x = "",
+#            y = "",
+#            fill = "SCI", 
+#            caption = "Source: Facebook Data For Good ") + 
+#       
+#       unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
+#       theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
+#             panel.grid.major = element_blank(),
+#             panel.background = element_rect(fill = "aliceblue"),
+#             axis.text.x  = element_blank(),
+#             axis.text.y  = element_blank(),
+#             legend.title = element_blank(), 
+#             legend.text  = element_text(size = 8),
+#             legend.key.size = unit(0.8, "lines"),
+#             legend.position = "bottom", 
+#             legend.box = "horizontal"
+#             ) 
+# p
+```
+
+
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+
+
+
+# # # Compute Stewart potentials
+# populationstewart <- SpatialPosition::stewart(knownpts = populationsp,
+#                                              varname = "population_2020",
+#                                              mask = polyLevel0_sf,
+#                                              typefct = "exponential",
+#                                             ## numeric; distance where the density of probability of the spatial interaction function equals 0.5.
+#                                              span = 200,
+#                                             ## numeric; impedance factor for the spatial interaction function.
+#                                              beta = 1,
+#                                              returnclass = "sf")
+# 
+# # Create contour
+# populationcontour <- SpatialPosition::isopoly(x = populationstewart,
+#                                                    nclass = 6,
+#                                                    mask = polyLevel0_sf, 
+#                                                    returnclass = "sf")
+
+```
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+# populationspgrid <- potential::create_grid(x = populationsp, 
+#                                           res = 200000)
+# 
+# plot(sf::st_geometry(populationsp))
+# plot(sf::st_geometry(populationspgrid))
+# 
+# populationmatrix <- potential::create_matrix(populationsp, populationspgrid)
+# 
+# populationsp$stewart<- potential::potential(
+#                                       x = populationsp, 
+#                                       y = populationspgrid, 
+#                                       d = populationmatrix, 
+#                                       var = "population_2020",
+#                                       fun = "e", 
+#                                       span = 200000, 
+#                                       beta = 2 
+#                                     )
+# 
+# 
+# populationequipot <- potential::equipotential(populationsp, 
+#                                     var = "stewart", 
+#                                     mask = polyLevel0_sf)
+# 
+# plot(populationequipot["center"], 
+#      pal = hcl.colors(nrow(equipot),"cividis") )
+# 
+# 
+# 
+# # Created breaks
+# bks <- sort(unique(c(populationcontour$min, populationcontour$max)))
+
+```
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}  
+# Draw the basemap
+
+# 
+# mapsf::mf_init(populationcontour)
+# # mapsf::mf_map(polyLevel0_sf, 
+# #               col = "#f5f5f3ff", 
+# #               border = "#a9b3b4ff", 
+# #               add = TRUE)
+# # Map the regional GDP per capita
+# mapsf::mf_map(x = populationcontour, 
+#               var = "center", 
+#               type = "choro",
+#               leg_pos = "topright",
+#               breaks = bks, 
+#               pal = pal, 
+#               border = NA, 
+#               leg_title = "Population Density",
+#               #leg_val_rnd = -2, 
+#               add = TRUE)
+# mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
+# mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+# # Set a layout
+# mapsf::mf_title(txt = "Population Density in El Salvador")
+# mapsf::mf_credits(txt = "Source: Facebook Data For Good", 
+#                    bg = "#ffffff80")
+
+#mapsf::mf_scale()
+# Set a text to explicit the function parameters
+# text(x = 6271272, y = 3743765, 
+#      labels = "Distance function:\n- type = exponential\n- beta = 2\n- span = 75 km", 
+#      cex = 0.8, adj = 0, font = 3)
+ 
+```
+
+
+# Relative Wealth Index
+
+Many critical policy decisions, from strategic investments to the allocation of humanitarian aid, rely on data about the geographic distribution of wealth and poverty. 
+
+As explained in a dedicated [paper](https://www.researchgate.net/publication/341999364_The_Relative_Value_of_Facebook_Advertising_Data_for_Poverty_Mapping/download), the [Relative Wealth Index](https://data.humdata.org/dataset/relative-wealth-index) estimates are built by applying machine learning algorithms to vast and heterogeneous data from satellites, mobile phone networks, topographic maps, as well as aggregated and de-identified connectivity data from Facebook.
+
+
+
+```{r getdatawealth, echo = FALSE, message = FALSE, warning = FALSE}
+wealth <-   read.csv(paste0(mainDirroot,"/data-raw/wealth/SLV_relative_wealth_index.csv")) 
+
+# wealth <-  rbind(read.csv(paste0(mainDirroot,"/data-raw/wealth/SLV_relative_wealth_index.csv")) ,
+#                   read.csv(paste0(mainDirroot,"/data-raw/wealth/HND_relative_wealth_index.csv")),
+#                   read.csv(paste0(mainDirroot,"/data-raw/wealth/GTM_relative_wealth_index.csv")),
+#                   read.csv(paste0(mainDirroot,"/data-raw/wealth/MEX_relative_wealth_index.csv"))
+#                  )
+
+wealthsp <- st_as_sf(wealth, coords = c("longitude", "latitude"), crs = 4326)
+# wealthgrid <- CreateGrid(w = wealthsp, resolution = 3000, returnclass = "sf")
+# # Create a distance matrix between known points (hospital) and mygrid
+# mymat <- CreateDistMatrix(knownpts = wealthsp, unknownpts = wealthgrid)
+# # Compute  distance weighted mean from known points (hospital) on a given
+# # grid (mygrid) using a given distance matrix (mymat)
+# wealthsmoothy <- smoothy(knownpts = wealthsp, 
+#                      unknownpts = wealthgrid,
+#                      matdist = mymat, 
+#                      varname = "rwi",
+#                      typefct = "exponential", 
+#                      span = 1250,
+#                      beta = 3, 
+#                      mask = polyLevel0_sf, 
+#                      returnclass = "sf")
+
+
+
+
+
+```
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+# Discretize the variable
+bv <- quantile(wealth$rwi, seq(from = 0, to = 1, length.out = 9))
+# Draw the map
+# Set a color palette
+pal <- mf_get_pal(n = 9, palette = "Burg", rev = TRUE)
+
+# Draw the basemap
+mapsf::mf_theme(bg = "#cdd2d4", mar = c(0,0,1.2,0), tab = FALSE)
+
+mapsf::mf_init(wealthsp)
+mapsf::mf_map(world, col = "#f5f5f3ff", 
+              border = "#a9b3b4ff", add = TRUE)
+# Map the regional GDP per capita
+mapsf::mf_map(x = wealthsp, 
+              var = "rwi", 
+              type = "choro",
+       leg_pos = "topright",
+       breaks = bv, 
+       pal = pal, 
+       border = NA, 
+       leg_title = "Relative Wealth Index",
+       #leg_val_rnd = -2, 
+       add = TRUE)
+mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
+mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+# Set a layout
+mapsf::mf_title(txt = "Relative Wealth Index in El Salvador")
+mapsf::mf_credits(txt = "Source: Facebook Data For Good", 
+           bg = "#ffffff80")
+
+
+```
+
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+# Compute Stewart potentials
+wealthstewart <- SpatialPosition::stewart(knownpts = wealthsp, 
+                     varname = "rwi",
+                     mask = polyLevel0_sf,
+                     typefct = "exponential", 
+                    ## numeric; distance where the density of probability of the spatial interaction function equals 0.5.
+                     span = 1000,  
+                    ## numeric; impedance factor for the spatial interaction function.
+                     beta = 1, 
+                     returnclass = "sf")
+# Create contour
+wealthcontour <- SpatialPosition::isopoly(x = wealthstewart,
+                       nclass = 6,
+                       mask = polyLevel0_sf, 
+                       returnclass = "sf")
+
+# Created breaks
+bks <- sort(unique(c(wealthcontour$min, wealthcontour$max)))
+
+
+# Set a color palette
+pal <- mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
+```
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}  
+ 
+
+mapsf::mf_init(wealthcontour)
+# mapsf::mf_map(polyLevel0_sf, 
+#               col = "#f5f5f3ff", 
+#               border = "#a9b3b4ff", 
+#               add = TRUE)
+# Map the regional GDP per capita
+mapsf::mf_map(x = wealthcontour, 
+              var = "center", 
+              type = "choro",
+              leg_pos = "topright",
+              breaks = bks, 
+              pal = pal, 
+              border = NA, 
+              leg_title = "Relative Wealth Index",
+              #leg_val_rnd = -2, 
+              add = TRUE)
+mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
+mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+# Set a layout
+mapsf::mf_title(txt = "Relative Wealth Index in El Salvador")
+mapsf::mf_credits(txt = "Source: Facebook Data For Good", 
+                   bg = "#ffffff80")
+
+#mapsf::mf_scale()
+# Set a text to explicit the function parameters
+# text(x = 6271272, y = 3743765, 
+#      labels = "Distance function:\n- type = exponential\n- beta = 2\n- span = 75 km", 
+#      cex = 0.8, adj = 0, font = 3)
+
+  
+  # 
+  # opar <- par(mar = c(0,0,1.2,0))
+  # # Display the map
+  # choroLayer(x = contourpoly,
+  #            var = "center", 
+  #            legend.pos = "topleft",
+  #            breaks = bks, 
+  #            border = "grey90",
+  #            lwd = 0.2,
+  #            legend.values.rnd = 2,
+  #            legend.title.txt = "Class")
+  # plot(st_geometry(paris), add = TRUE)
+  # layoutLayer(title = "Relative Wealth Index",
+  #             sources = "", author = "")
+  # par(opar)
+```
+
+
+## Violence
+
+```{r getdataacled, message=FALSE, warning=FALSE,  echo = FALSE,  include=FALSE, cache = TRUE}
+## getting data from ACLED for events... 
+acled.data <- acled.api::acled.api(email.address = Sys.getenv("EMAIL_ADDRESS"),  # see https://developer.acleddata.com/
+                                   access.key = Sys.getenv("ACCESS_KEY"),
+                                   start.date = "2017-01-01",
+                        end.date = lubridate::today(),
+                        country = c( "El Salvador"),
+                        all.variables = TRUE) 
+
+
+
+acledsp <- st_as_sf(acled.data, coords = c("longitude", "latitude"), crs = 4326)
+```
+
+```{r echo = FALSE, message = FALSE, warning = FALSE} 
+acledstewart <- SpatialPosition::stewart(knownpts = acledsp, 
+                     varname = "fatalities",
+                     mask = polyLevel0_sf,
+                     typefct = "exponential", 
+                    ## numeric; distance where the density of probability of the spatial interaction function equals 0.5.
+                     span = 6000,  
+                    ## numeric; impedance factor for the spatial interaction function.
+                     beta = 5, 
+                     returnclass = "sf")
+# Create contour
+acledcontour <- SpatialPosition::isopoly(x = acledstewart,
+                       nclass = 6,
+                       mask = polyLevel0_sf, 
+                       returnclass = "sf")
+
+# Created breaks
+bks <- sort(unique(c(acledcontour$min, acledcontour$max)))
+
+
+# Set a color palette
+pal <- mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
+
+mapsf::mf_init(acledcontour)
+# mapsf::mf_map(polyLevel0_sf, 
+#               col = "#f5f5f3ff", 
+#               border = "#a9b3b4ff", 
+#               add = TRUE)
+# Map the regional GDP per capita
+mapsf::mf_map(x = acledcontour, 
+              var = "center", 
+              type = "choro",
+              leg_pos = "topright",
+              breaks = bks, 
+              pal = pal, 
+              border = NA, 
+              leg_title = "Number of fatalities",
+              #leg_val_rnd = -2, 
+              add = TRUE)
+mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
+mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+# Set a layout
+mapsf::mf_title(txt = "Fatalities in El Salvador")
+mapsf::mf_credits(txt = "Source: ACLED", 
+                   bg = "#ffffff80")
+
+
+```
+
+
+
+
+
+#   Social Connectedness Index
+
+
+an anonymized snapshot of all active Facebook users and their friendship networks to measure the intensity of connectedness between locations. The [Social Connectedness Index (SCI)](https://www.aeaweb.org/articles?id=10.1257/jep.32.3.259) is a measure of the social connectedness between different geographies. Specifically, it measures the relative probability that two individuals across two locations are friends with each other on Facebook.
+
+
+http://pages.stern.nyu.edu/~jstroebe/PDF/BGHKRS_InternationalTradeSocialConnectedness_JIE.pdf 
+
+https://data.humdata.org/dataset/social-connectedness-index 
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+# Inputs:
+    # sci_dat = A tibble with SCI data. Must include columns user_loc, fr_loc, SCI, and additional columns that specify countries
+    # user_country_col = A string that stores the name of the column that specifies the user_loc country (defaults to 'user_country')
+    # fr_country_col = A string that stores name of the column that specifies the fr_loc country (defaults to 'fr_country')
+    # shapefiles = An sf object that specifies the shapefiles to use
+    # region_name_col = A string that stores the name of the column in 'shapefiles' that specifies the region name
+    # country = The country code to filter to (matching the format of the data stored in user_country_col)
+    # regions = A vector of regions within the country to generate maps for (if NULL will generate maps for every region)
+    # output_folder = The folder to save the maps to
+    # scale_from_ptile = The maps color buckets are created from scaling up from the Xth percentile of any region pair. This sets that X (defaults to 25).
+
+dir.sci_dat_gadm1_nuts3_counties <- paste0(mainDirroot,"/data-raw/connected/gadm1_nuts3_counties_gadm1_nuts3_counties_Aug2020.tsv")
+
+# Read in the detailed GADM SCI data (this dataset is quite large and 
+# this line of code will likely take a minute or so)
+sci_dat <- read_tsv(dir.sci_dat_gadm1_nuts3_counties)
+country_sci <- rename(sci_dat, sci=scaled_sci)  %>% 
+  filter(str_detect(user_loc, "SLV")) %>% 
+  filter(str_detect(fr_loc, "SLV"))
+
+## Map for SLV
+shapes_in <- polyLevel1_sf
+# levels(as.factor(sci_dat$user_loc))
+#levels(as.factor(shapes_in$GID_1 ))
+## Clean the code between 2 tables
+shapes_in$fr_loc <- str_remove(shapes_in$GID_1, "_1")
+## Remove the dot in the mapping code
+#shapes_in$user_loc <- str_replace(shapes_in$user_loc1, "\\.$", "")
+shapes_in$fr_loc <- str_replace_all(shapes_in$fr_loc, "[[:punct:]]", "")
+
+
+
+# Create measures by scaling up from the chosen percentile of all pairs
+
+scale_from_ptile <- 25
+x1 <- quantile(country_sci$sci, scale_from_ptile/100)
+  x2 <- x1 * 2
+  x3 <- x1 * 3
+  x5 <- x1 * 5
+  x10 <- x1 * 10
+  x25 <- x1 * 25
+  x100 <- x1 * 100
+
+  
+for ( curr_region_code in unique(country_sci$user_loc))  {
+  
+## curr_region_code <- "SLV1" 
+dat <- filter(country_sci, user_loc == curr_region_code)
+    
+# Merge with shape files
+dat_map <- 
+    inner_join(dat, shapes_in, by=c("fr_loc")) %>% 
+    st_as_sf
+
+# region_name_col  <- "name"
+# fr_country_col  <- "fr_country"
+
+
+# Create clean buckets for these levels
+dat_map <- dat_map %>% 
+      mutate(sci_bkt = case_when(
+        sci < x1 ~ str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
+        sci < x2 ~ "1-2x",
+        sci < x3 ~ "2-3x",
+        sci < x5 ~ "3-5x",
+        sci < x10 ~ "5-10x",
+        sci < x25 ~ "10-25x",
+        sci < x100 ~ "25-100x",
+        sci >= x100 ~ ">= 100x")) %>% 
+      mutate(sci_bkt = factor(sci_bkt, levels=c(str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
+                                                "1-2x", "2-3x", "3-5x", "5-10x", "10-25x", "25-100x", ">= 100x")))
+    
+# Get the map of the region you are in
+curr_region_outline <- dat_map %>% 
+    filter(fr_loc == curr_region_code)
+    
+curr_region_name <- curr_region_outline$NAME_1
+
+
+
+# Plot the data
+p <- ggplot(st_transform(dat_map, "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")) +
+      geom_sf(aes(fill = sci_bkt), 
+              colour="#DADADA", 
+              size=0.25) +
+      geom_sf(data=curr_region_outline, 
+              fill="#A00000", 
+              colour="#A00000", 
+              size=0.5) +
+  
+
+      scale_fill_brewer(palette = "GnBu", na.value="#F5F5F5", drop=FALSE) +
+  
+      labs(title = paste0("Internal Social Connectedness Index for department: ",curr_region_name) ,
+           subtitle = "El Salvador, as of August 2020",
+           x = "",
+           y = "",
+           fill = "SCI", 
+           caption = "Source: Facebook Data For Good ") + 
+      
+      unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
+      theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
+            panel.grid.major = element_blank(),
+            panel.background = element_rect(fill = "aliceblue"),
+            axis.text.x  = element_blank(),
+            axis.text.y  = element_blank(),
+            legend.title = element_blank(), 
+            legend.text  = element_text(size = 8),
+            legend.key.size = unit(0.8, "lines"),
+            legend.position = "bottom", 
+            legend.box = "horizontal"
+            ) # +
+      #guides(fill = guide_legend(nrow = 1, title.hjust = 0.5))
+
+print(p)
+  
+}
+
+```
+
+
+
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+
+country_sci <- rename(sci_dat, sci=scaled_sci)  %>% 
+  filter(str_detect(user_loc, "SLV")) %>% 
+  filter(str_detect(fr_loc, c("SLV","GTM", "HND")))
+
+
+#names(gadm1)
+## Map for SLV
+shapes_in <- gadm1 %>% 
+  st_transform(crs=4326)  %>% 
+ # st_transform(crs("+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"))  %>% 
+  filter(GID_0 %in% c("SLV","GTM", "HND", "MEX")) 
+
+shapes_in <- shapes_in[ , c("GID_1", "NAME_1", "geometry")]
+
+  
+
+# levels(as.factor(country_sci$fr_loc))
+#levels(as.factor(shapes_in$GID_1 ))
+# levels(as.factor(shapes_in$NAME_1 ))
+## Clean the code between 2 tables
+shapes_in$fr_loc <- str_remove(shapes_in$GID_1, "_1")
+## Remove the dot in the mapping code
+#shapes_in$user_loc <- str_replace(shapes_in$user_loc1, "\\.$", "")
+shapes_in$fr_loc <- str_replace_all(shapes_in$fr_loc, "[[:punct:]]", "")
+#levels(as.factor(shapes_in$fr_loc ))
+
+
+## Check what you get
+##plot(sf::st_geometry(shapes_in))
+
+# Create measures by scaling up from the chosen percentile of all pairs
+
+scale_from_ptile <- 25
+x1 <- quantile(country_sci$sci, scale_from_ptile/100)
+x2 <- x1 * 2
+x3 <- x1 * 3
+x5 <- x1 * 5
+x10 <- x1 * 10
+x25 <- x1 * 25
+x100 <- x1 * 100
+
+  
+for ( curr_region_code in unique(country_sci$user_loc))  {
+  
+## curr_region_code <- "SLV1" 
+dat <- filter(country_sci, user_loc == curr_region_code)
+    
+# Merge with shape files
+dat_map <- 
+    inner_join(dat, shapes_in, by=c("fr_loc")) %>% 
+    st_as_sf  %>% 
+    mutate(sci_bkt = case_when(
+        sci < x1 ~ str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
+        sci < x2 ~ "1-2x",
+        sci < x3 ~ "2-3x",
+        sci < x5 ~ "3-5x",
+        sci < x10 ~ "5-10x",
+        sci < x25 ~ "10-25x",
+        sci < x100 ~ "25-100x",
+        sci >= x100 ~ ">= 100x")) %>% 
+    mutate(sci_bkt = factor(sci_bkt, levels=c(str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
+                                                "1-2x", "2-3x", "3-5x", "5-10x", "10-25x", "25-100x", ">= 100x")))
+    
+# Get the map of the region you are in
+curr_region_outline <-
+    inner_join(dat, shapes_in, by=c("user_loc"="fr_loc")) %>% 
+    filter(user_loc == curr_region_code) %>% 
+    head(1)  %>% 
+   st_as_sf() 
+    
+curr_region_name <-  curr_region_outline$NAME_1 
+##plot(sf::st_geometry(curr_region_outline))
+
+
+# Plot the data
+p <- ggplot(  ) +
+      geom_sf(data=shapes_in, 
+              colour="black", 
+              size=0.1) +
+      geom_sf(data=dat_map, aes(fill = sci_bkt), 
+              colour="#DADADA", 
+              size=0.15) +
+      geom_sf(data=curr_region_outline, 
+              fill="#A00000", 
+              colour="#A00000", 
+              size=0.5) +
+  
+
+      scale_fill_brewer(palette = "GnBu", na.value="#F5F5F5", drop=FALSE) +
+  
+      labs(title = paste0("International Social Connectedness Index for department: ",curr_region_name) ,
+           subtitle = "El Salvador to Honduras, Guatemala & Mexico, as of August 2020",
+           x = "",
+           y = "",
+           fill = "SCI", 
+           caption = "Source: Facebook Data For Good ") + 
+      
+      unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
+      theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
+            panel.grid.major = element_blank(),
+            panel.background = element_rect(fill = "aliceblue"),
+            axis.text.x  = element_blank(),
+            axis.text.y  = element_blank(),
+            legend.title = element_blank(), 
+            legend.text  = element_text(size = 8),
+            legend.key.size = unit(0.8, "lines"),
+            legend.position = "bottom", 
+            legend.box = "horizontal"
+            ) # +
+      #guides(fill = guide_legend(nrow = 1, title.hjust = 0.5))
+
+print(p)
+  
+}
+
+```
+
+
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+
+country_sci <- rename(sci_dat, sci=scaled_sci)  %>% 
+  filter(str_detect(user_loc, "SLV")) %>% 
+  filter(str_detect(fr_loc, c("SLV","GTM", "HND", "MEX", "USA")))
+
+
+#names(gadm1)
+## Map for SLV
+shapes_in <- gadm1 %>% 
+  st_transform(crs=4326)  %>% 
+ # st_transform(crs("+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"))  %>% 
+  filter(GID_0 %in% c("SLV","GTM", "HND", "MEX")) 
+
+shapes_in <- shapes_in[ , c("GID_1", "NAME_1", "geometry")]
+
+  
+
+# levels(as.factor(country_sci$fr_loc))
+#levels(as.factor(shapes_in$GID_1 ))
+# levels(as.factor(shapes_in$NAME_1 ))
+## Clean the code between 2 tables
+shapes_in$fr_loc <- str_remove(shapes_in$GID_1, "_1")
+## Remove the dot in the mapping code
+#shapes_in$user_loc <- str_replace(shapes_in$user_loc1, "\\.$", "")
+shapes_in$fr_loc <- str_replace_all(shapes_in$fr_loc, "[[:punct:]]", "")
+#levels(as.factor(shapes_in$fr_loc ))
+
+
+## Merged GADm1 & US Counties from Tigris
+counties_map$fr_loc <- counties_map$GID_1
+shapes_in <- rbind(shapes_in, counties_map)
+
+## Check what you get
+##plot(sf::st_geometry(shapes_in))
+
+# Create measures by scaling up from the chosen percentile of all pairs
+
+scale_from_ptile <- 25
+x1 <- quantile(country_sci$sci, scale_from_ptile/100)
+x2 <- x1 * 2
+x3 <- x1 * 3
+x5 <- x1 * 5
+x10 <- x1 * 10
+x25 <- x1 * 25
+x100 <- x1 * 100
+
+  
+for ( curr_region_code in unique(country_sci$user_loc))  {
+  
+## curr_region_code <- "SLV1" 
+dat <- filter(country_sci, user_loc == curr_region_code)
+    
+# Merge with shape files
+dat_map <- 
+    inner_join(dat, shapes_in, by=c("fr_loc")) %>% 
+    st_as_sf  %>% 
+    mutate(sci_bkt = case_when(
+        sci < x1 ~ str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
+        sci < x2 ~ "1-2x",
+        sci < x3 ~ "2-3x",
+        sci < x5 ~ "3-5x",
+        sci < x10 ~ "5-10x",
+        sci < x25 ~ "10-25x",
+        sci < x100 ~ "25-100x",
+        sci >= x100 ~ ">= 100x")) %>% 
+    mutate(sci_bkt = factor(sci_bkt, levels=c(str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
+                                                "1-2x", "2-3x", "3-5x", "5-10x", "10-25x", "25-100x", ">= 100x")))
+    
+# Get the map of the region you are in
+curr_region_outline <-
+    inner_join(dat, shapes_in, by=c("user_loc"="fr_loc")) %>% 
+    filter(user_loc == curr_region_code) %>% 
+    head(1)  %>% 
+   st_as_sf() 
+    
+curr_region_name <-  curr_region_outline$NAME_1 
+##plot(sf::st_geometry(curr_region_outline))
+
+
+# Plot the data
+p <- ggplot(  ) +
+      geom_sf(data=shapes_in, 
+              colour="black", 
+              size=0.1) +
+      geom_sf(data=dat_map, aes(fill = sci_bkt), 
+              colour="#DADADA", 
+              size=0.15) +
+      geom_sf(data=curr_region_outline, 
+              fill="#A00000", 
+              colour="#A00000", 
+              size=0.5) +
+  
+
+      scale_fill_brewer(palette = "GnBu", na.value="#F5F5F5", drop=FALSE) +
+  
+      labs(title = paste0("Interntional Social Connectedness Index for department: ",curr_region_name) ,
+           subtitle = "El Salvador to USA, Honduras, Guatemala & Mexico, as of August 2020",
+           x = "",
+           y = "",
+           fill = "SCI", 
+           caption = "Source: Facebook Data For Good ") + 
+      
+      unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
+      theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
+            panel.grid.major = element_blank(),
+            panel.background = element_rect(fill = "aliceblue"),
+            axis.text.x  = element_blank(),
+            axis.text.y  = element_blank(),
+            legend.title = element_blank(), 
+            legend.text  = element_text(size = 8),
+            legend.key.size = unit(0.8, "lines"),
+            legend.position = "bottom", 
+            legend.box = "horizontal"
+            ) # +
+      #guides(fill = guide_legend(nrow = 1, title.hjust = 0.5))
+
+print(p)
+  
+}
+
+```
+
+
+
+# Movement Range 
+
+The  [Movement Range data sets ](https://data.humdata.org/dataset/movement-range-maps) is intended to inform on how populations are [responding to physical distancing measures](https://research.fb.com/blog/2020/06/protecting-privacy-in-facebook-mobility-data-during-the-covid-19-response/). In particular, there are two metrics that provide a slightly different perspective on movement trends:
+
+ * __Change in Movement__: looks at how much people are moving around and compares it with a baseline period that predates most social distancing measures. The idea is to understand how much less people are moving around since the onset of the coronavirus epidemic. This is done by quantifying how much people move around by counting the number of level-16 Bing tiles (which are approximately 600 meters by 600 meters in area at the equator) they are seen in within a day. In the dataset noted `all_day_bing_tiles_visited_relative_change`  
+ 
+ * __Stay Put__: looks at the fraction of the population that appear to stay within a small area during an entire day. This metric intends to measure this by calculating the percentage of eligible people who are only observed in a single level-16 Bing tile during the course of a day. In the dataset noted `all_day_ratio_single_tile_users`
+
+
+
+<!--
+3.1 Original source where the data was obtained is cited and, if possible, hyperlinked. 
+3.2 Source data is thoroughly explained (i.e. what was the original purpose of the data, when was it collected, how many variables did the original have, explain any peculiarities of the source data such as how missing values are recorded, or how data was imputed, etc.). 
+3.3 Data importing and cleaning steps are explained in the text (tell me why you are doing the data cleaning activities that you perform) and follow a logical process.
+3.4 Once your data is clean, show what the final data set looks like. However, do not print off a data frame with 200+ rows; show me the data in the most condensed form possible. 
+3.5 Provide summary information about the variables of concern in your cleaned data set. Do not just print off a bunch of code chunks with str(), summary(), etc. Rather, provide me with a consolidated explanation, either with a table that provides summary info for each variable or a nicely written summary paragraph with inline code.
+-->
+
+
+
+```{r getdatamovement, echo = FALSE, message = FALSE, warning = FALSE}
+
+movement_range <- rbind(utils::read.delim(paste0(mainDirroot,"/data-raw/movement/movement-range-2021-09-18.txt")),
+                        utils::read.delim(paste0(mainDirroot,"/data-raw/movement/movement-range-data-2020-03-01--2020-12-31.txt")) )
+
+#table(movement_range$country)
+
+# This data includes movement changes measured by Facebook starting from a baseline in February. 
+# 
+# 
+#   * `ds`: Date stamp for movement range data row in YYYY-MM-DD form
+#   * `country`: Three-character ISO-3166 country code
+#   * `polygon_source`: Source of region polygon, either  FIPS  for U.S. data or  GADM  for global data
+#   * `polygon_id`: Unique identifier for region polygon, either numeric string for U.S. FIPS codes or alphanumeric string for GADM regions
+#   * `polygon_name`: Region name
+#   * `all_day_bing_tiles_visited_relative_change`: Positive or negative change in movement relative to baseline
+#   * `all_day_ratio_single_tile_users`: Positive proportion of users staying put within a single location
+#   * `baseline_name`: When baseline movement was calculated pre-COVID-19
+#   * `baseline_type`: How baseline movement was calculated pre-COVID-19
+
+
+```
+
+ 
+
+```{r plot2, echo = FALSE, message = FALSE, warning = FALSE}
+## I strongly recommend to subset unless you want the entire globe. This will be very large and slow if you do not.
+md <- subset(movement_range,country %in% c( "SLV" #, "HND", "MEX","BLZ", "GTM"
+                                            ))
+
+
+md$ds <- as.Date(md$ds, "%Y-%m-%d") 
+#table(md$polygon_name)
+
+#as.character(unique(md$polygon_name))
+
+## Find the maximum and minimum observed stay at home values for all regions and all dates
+max_stay_put = max(md$all_day_ratio_single_tile_users)
+min_stay_put = min(md$all_day_ratio_single_tile_users)
+
+
+## These filtered versions of the data determine the polygon_id which define the overall maximum and minimum values 
+md_filtered <- md %>%
+  group_by(polygon_id) %>% 
+  filter(max(all_day_ratio_single_tile_users) >= max_stay_put) %>%
+  ungroup()
+
+md_filtered2 <- md %>%
+  group_by(polygon_id) %>% 
+  filter(min(all_day_ratio_single_tile_users) <= min_stay_put) %>%
+  ungroup()
+
+```
+ 
+
+
+
+<!--
+4.1 Discuss how you plan to uncover new information in the data that is not self-evident. What are different ways you could look at this data to answer the questions you want to answer? Do you plan to slice and dice the data in different ways, create new variables, or join separate data frames to create new summary information? How could you summarize your data to answer key questions? 
+4.2 What types of plots and tables will help you to illustrate the findings to your questions? 
+4.3 What do you not know how to do right now that you need to learn to answer your questions? 
+4.4 Do you plan on incorporating any machine learning techniques (i.e. linear regression, discriminant analysis, cluster analysis) to answer your questions? 
+-->
+
+
+
+```{r pressure1, echo = FALSE, message = FALSE, warning = FALSE}
+## Produce a histogram of all stay put values for the country. Use this to judge how many standard deviations should be used to define best and worst regions
+ggplot(md, aes(x=all_day_ratio_single_tile_users)) + 
+  geom_histogram(color="black", fill="white",bins = 50) +
+  scale_y_continuous( label = format_si()) + ## Format axis number
+  geom_vline(aes(xintercept=median(all_day_ratio_single_tile_users)),
+             color="blue", 
+             linetype="dashed", 
+             size=1) +
+  labs(x = "Ratio of users staying all day within a single cartographic tile", 
+                 y = " ", 
+                 title = "How mobile people are?",
+                 subtitle = "In Average, 20% of FB users stayed wtihin the same closed location",
+                 caption = "Source: Facebook users Staying Put - Facebook Data For Good - one tile is 600 meters by 600 meters") +
+            geom_hline(yintercept = 0, size = 1.1, colour = "#333333") +
+            unhcRstyle::unhcr_theme(base_size = 8)   + ## Insert UNHCR Style
+            theme(panel.grid.major.y  = element_line(color = "#cbcbcb"), 
+                  panel.grid.major.x  = element_blank(), 
+                  panel.grid.minor = element_blank()) 
+
+```
+
+
+
+```{r plot3, echo=FALSE}
+
+# 
+# # stay put values for regions within one sd of best performance recorded overlaid above time series of all region
+# 
+# ## Line graphs of stay put values for regions within one sd of best performance recorded overlaid above time series of all regions
+# ggplot(md) +
+#   geom_line(aes(ds, all_day_ratio_single_tile_users, colour = polygon_name)) +
+#   gghighlight(max(all_day_ratio_single_tile_users) >= max_stay_put-sd(md_filtered$all_day_ratio_single_tile_users),
+#               use_direct_label = FALSE,
+#               unhighlighted_params = list(colour = alpha("grey", 0.1))) + 
+#   
+#   facet_wrap(~ polygon_name) +
+#   
+#   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+#   geom_vline(aes(xintercept=median(all_day_ratio_single_tile_users)),
+#              color="blue", 
+#              linetype="dashed", 
+#              size=1) +
+#   labs(x = "Ratio of users staying all day within a single cartographic tile", 
+#                  y = " ", 
+#                  title = "How mobile people are?",
+#                  subtitle = "In Average, 20% of FB users stayed wtihin the same closed location",
+#                  caption = "Source: Facebook users Staying Put - Facebook Data For Good - one tile is 600 meters by 600 meters") +
+#             geom_hline(yintercept = 0, size = 1.1, colour = "#333333") +
+#             unhcRstyle::unhcr_theme(base_size = 8)   + ## Insert UNHCR Style
+#             theme(legend.position = "none",
+#                   panel.grid.major.y  = element_line(color = "#cbcbcb"), 
+#                   panel.grid.major.x  = element_blank(), 
+#                   panel.grid.minor = element_blank(),
+#                   axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+#   
+    
+
+
+```
+
+
+
+```{r plot4, echo = FALSE, message = FALSE, warning = FALSE}
+
+
+
+## Line graphs of stay put values for regions within one sd of worst performance 
+# recorded overlaid above time series of all regions
+ggplot(data = md) +
+   geom_line(aes(x = ds, 
+                 y = all_day_ratio_single_tile_users, 
+                 #colour = polygon_name,
+                 group = polygon_name)) +
+   gghighlight(min(all_day_ratio_single_tile_users) <= min_stay_put + sd(md_filtered2$all_day_ratio_single_tile_users),
+               use_direct_label = FALSE, 
+               unhighlighted_params = list(colour = alpha("grey", 0.1))) + 
+  
+   facet_wrap(~ polygon_name) +
+   
+  scale_x_date(labels = scales::date_format("%b")) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  geom_vline(aes(xintercept=median(all_day_ratio_single_tile_users)),
+             color="blue", 
+             linetype="dashed", 
+             size=1) +
+  labs(x = "Ratio of users staying all day within a single cartographic tile", 
+       y = " ", 
+       title = "How mobile people are?",
+       subtitle = "Highlighted area the one beyond Standard Deviation ",
+       caption = "Source: Facebook users Staying Put - Facebook Data For Good - one tile is 600 meters by 600 meters") +
+  geom_hline(yintercept = 0, size = 1.1, colour = "#333333") +
+  unhcRstyle::unhcr_theme(base_size = 8)   + ## Insert UNHCR Style
+  theme(legend.position = "none",
+                  panel.grid.major.y  = element_line(color = "#cbcbcb"), 
+                  panel.grid.major.x  = element_blank(), 
+                  panel.grid.minor = element_blank(),
+                  axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  
+  
+ 
+```
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+## Some fields require renaming to match the field names in the sf shapefile. Each country's polyLevel2.sf will be slightly different in how it encodes the admin fields, so it's not plug and play.
+df <- md %>% 
+  rename(
+    GID_0 = country,
+   # GID_2 = polygon_id,
+    #NAME_1 = gadm1_name,
+    NAME_2 = polygon_name
+  )
+# levels(as.factor(df$NAME_2))
+# levels(as.factor(df$GID_2))
+# 
+# 
+# levels(as.factor(polyLevel2_sf$GID_2))
+
+## Setup the date ranges and trim the metric outliers
+ranges = df %>%
+  filter(ds >= '2020-03-01',
+         !is.na(all_day_ratio_single_tile_users)) %>%
+  summarise(p05 = quantile(all_day_ratio_single_tile_users,0.01),
+            p95 = quantile(all_day_ratio_single_tile_users,0.99))
+
+## Will try and plot this date first, but then go to the next earliest if not available in the df dataframe
+target_ds = max(df$ds)-180
+df <- subset(df, ds >= target_ds)
+
+## FUN to generate a map plot for each day of data and save to local disk
+plot_date <- function(joined_spatial, target_ds) {
+  data = joined_spatial %>%
+    filter(ds == target_ds) %>%
+    inner_join(polyLevel2_sf) %>%
+    st_sf()
+  
+  minx = plyr::round_any(ranges$p05, 0.05, ceiling)
+  maxx = plyr::round_any(ranges$p95, 0.05, ceiling)
+  #probably where you set the start date of the dots animation scale
+  days = as.double(difftime(ymd(target_ds),
+                            ymd('2021-01-01'),
+                            units = "days")) + 1
+  print(target_ds)
+  ##dots = paste0(rep('.', days), collapse = '')
+  title = glue('\n Date: {target_ds}')   # \n{dots}')
+
+  
+datg <- data %>%
+    mutate(all_day_ratio_single_tile_users = case_when(all_day_ratio_single_tile_users < minx ~ minx,
+                                                         all_day_ratio_single_tile_users > maxx ~ maxx,
+                                                         TRUE ~ all_day_ratio_single_tile_users))  
+    
+g <-  ggplot() + 
+    
+    geom_sf(data = datg,
+            aes(fill = plyr::round_any(all_day_ratio_single_tile_users, 0.05)),
+            size = 0.02, 
+            color = '#ccbbbb') +
+    
+    # geom_sf(polyLevel2_sf,
+    #           colour="black",
+    #           size=0.2) +
+    # palette = 'YlGnBu' for All, palette = 'PuRd' and direction 1 for Restaurants
+    scale_fill_distiller(type = 'seq', palette = 'YlGnBu', direction = 1,
+                         limits = c(0, 1.0), # use maxx instead of 1.0 if you want to scale the value to the underlying data
+                         labels = scales::percent_format(accuracy = 5)) +
+  
+      
+      unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
+      theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
+            panel.grid.major = element_blank(),
+            panel.background = element_rect(fill = "aliceblue"),
+            axis.text.x  = element_blank(),
+            axis.text.y  = element_blank(),
+            legend.title = element_blank(), 
+            legend.text  = element_text(size = 8),
+            legend.key.size = unit(0.8, "lines"),
+            legend.position = "bottom", 
+            legend.box = "horizontal"
+            )
+  
+  # unhcRstyle::unhcr_theme(base_size = 8)   + ## Insert UNHCR Style
+  # theme(  panel.grid = element_blank(),
+  #         legend.key.height = unit(0.25, 'cm'),
+  #         legend.key.width = unit(0.10, 'cm'),
+  #         axis.text = element_blank(),
+  #         plot.margin = unit(c(0.1,0.1,0.1,0.1), "cm"),
+  #         panel.spacing=unit(c(0,0,0,0), "null"),
+  #         legend.position = c(0.1, 0.1)) +
+  labs(fill = 'Facebook Data for Good \n% Staying Put',
+         title = title)
+  ggsave(glue({'anim/SLV-{target_ds}-staying put.png'}), g, scale = 1.0,
+         width = unit(4, 'cm'),
+         height = unit(4, 'cm'))
+  g
+}
+
+## Create a subdirectory so that you don't flood your working directory with many png files
+if (!fs::dir_exists("anim")) fs::dir_create("anim")
+
+
+## Indicate the start of the date range. Ideally the min ds in df, but also allows hand manipulation if you want to use the dots visualization in the plots as a cheap timeline
+date_range = df %>%
+  filter(ds >= '2020-03-01') %>%
+  distinct(ds) %>%
+  pull(ds)
+
+## Might not be needed, but can help with not grinding a local machine while generating the plots
+plan(multisession)
+
+
+## FUN CALL
+plot_date(df, target_ds)
+
+# ## kicks off iterating through all dates.
+# results = future_map(date_range, ~plot_date(df, .x))
+
+
+
+# list.files(path='anim/', pattern = '*.png', full.names = TRUE) %>% 
+#   image_read() %>% # reads each path file
+#   image_join() %>% # joins image
+#   image_morph(frames = 2) %>%
+#   image_animate(fps=20) %>% # animates, can opt for number of loops
+#   magick::image_write("anim/FileName.gif") # write to current dir
+
+```
+
+
+ 
+
+
