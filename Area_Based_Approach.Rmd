@@ -8,18 +8,50 @@ output:
     toc: true
 ---
 
-<!-- 
-1.1 Provide an introduction that explains the problem statement you are addressing. Why should I be interested in this? 
-1.2 Provide a short explanation of how you plan to address this problem statement (the data used and the methodology employed) 
-1.3 Discuss your current proposed approach/analytic technique you think will address (fully or partially) this problem. 
-1.4 Explain how your analysis will help the consumer of your analysis.
--->
+Recent displacement trends show growing numbers of displaced population living outside of designated areas such as camp/camp like setting (traditional camps collective/transit/reception centres, informal settlements) with a majority setting in dispersed locations predominately urban and peri-urban areas such as informal settlements, unfinished buildings or interspersed in host community homes and communities, shared rooms or rental arrangements. To be able to reach, properly assess and understand local dynamics, vulnerabilities and capacities of the displaced and host populations alike, humanitarian organisations are increasingly using sub-national [Area Based Approach](https://www.humanitarianlibrary.org/collection/implementing-area-based-approaches). Area based approaches define “_an area, rather than a sector or target group, as a primary entry point_”. Such approach is particularly appropriate when residents in an affected area face complex, inter-related and multisectoral needs, resulting in risk of forced displacement.
+
+# Area Based Approach for Forced Displacement: Characterisation through Sensor Data
+
+In the context of migration statistics, forced displacement is often analyzed with the prism of [push and pull factors](https://immigrationforum.org/article/push-or-pull-factors-what-drives-central-american-migrants-to-the-u-s/). 
+
+|                                                                                                | **Push Factor** (Mitigated by intervention to address root causes within countries of origin)         | **Pull Factor** (Mitigated by migration & Asylum policies of receiving countries)  |
+|------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
+| **Economic Dimension** (Addressed by programme in relation with development & poverty alleviation) | Lack of public services, Unemployement, Overpopulation                                                | More jobs, Better jobs, Higher wages,  promise of a “better individual life”       |
+| **Social Dimension** (Addressed by programme in relation with protection)                          | Violence, insecurity, intolerance towards certain groups, active political or religious persecution,  | Safety, tolerance, freedom                                                         |
+| **Environmental Dimension** (Addressed by programme in relation with resilience & sustainability) | Climate change, natural disasters                                                                     | More livable environment                                                           |
+
+Though, traditional statistical data sources are often lacking sufficient geographically-fine-grained disaggregation to inform sub national scale approach and characterization.  Alternative based on sophisticated index like [Inform Colombia](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Subnational-Risk/Colombia) requires extensive expert consultations and might not fully reflect the important dimension to be reflected in the context of forced displacement and migration. 
+
+# Proposed methodology
+
+New sensors provide unique abilities to capture new  flow of information from social medias (Anonymized data from Facebook platform) at subnational scale through grid level information. Satellite data can pick up signals of economic activity by detecting light at night, it can pick up development status by detecting infrastructure such as roads, and it can pick up signals for individual household wealth by detecting different building footprints and roof types. 
+
+In regard to the framework above, an initial selection of globally available layers includes: 
+
+ *  Economics:
+       * Weighted Relative Wealth Index ([Facebook-RWI](https://data.humdata.org/dataset/relative-wealth-index))
+       * Social Connectedness Index ([Facebook-SCI](https://data.humdata.org/dataset/social-connectedness-index))
+       * Public Services Catchment area (OSM)
+   
+ *  Environment:
+       * Agricultural drought frequency Index ([FAO-ASI](http://www.fao.org/giews/earthobservation/country/index.jsp?code=SLV&lang=en))
+       * Climatic Natural Risk - Flood and Cyclone  (Prevention Web)
+       * Geologic Natural Risk - Earthquake and Volcano  (Prevention Web)
+  
+ *  Social: 
+       * Population Dependency Ratio (Facebook)
+       * Movement Range data sets  [Facebook](https://data.humdata.org/dataset/movement-range-maps)
+       * Violence (ACLED)
+ 
+Information can be compiled and aggregated at admin level 2 in order to build composite Indicators. Different areas can be then grouped together based on the values from those composite indicators. The advantage of this approach are multiple:
+ 1. __Granularity__: Optimal Level of granularity
+ 2. __Availibility__: Data Consistently and freely available worldwide, simplicity to obtain information, ensor based indicators are potentially less sensitive to political pressure
+ 3. __Reproducibility__: Can be used in multiple countries easily and Fully automated and audited through reproducible analysis script
+
+The resulting information can complement other traditional source of information both on quantitative (Household Survey) and qualitative (Focus Group Discussions) side.
 
 
 
-People who use Facebook on a mobile device have the option of providing their precise location in order to enable products like Nearby Friends and Find Wi-Fi and to get local content and ads. Different type of products are produced by the [Facebok Data for Good Team]() by aggregating and de-identifying this data. Only people who opt in to Location History and background location collection are included. People with very few location pings in a day are not informative for these trends, and, therefore, we include only those people whose location is observed for a meaningful period of the day.
-
-Central America indeed has an important [number of facebook users]and Facebook data for good has released a few [dataset](https://data.humdata.org/organization/facebook?groups=slv)
 
 
 ```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
@@ -58,9 +90,20 @@ library(potential)
 library(SpatialPosition)
 library(sp)
 
+library(exactextractr)
+
+# remotes::install_gitlab("dickoa/rhxl") ## rhdx dependency
+# remotes::install_gitlab("dickoa/rhdx") ## github mirror also avalailable
+library(rhdx)
+
+library(gganimate)
+library(cowplot)
+library(transformr)
+
 mainDir <- getwd()
 ## If you save your analysis under vignette folder...
-mainDirroot <- substring(mainDir, 0 , nchar(mainDir) - 10)
+#mainDirroot <- substring(mainDir, 0 , nchar(mainDir) - 10)
+mainDirroot <- mainDir
 
 ```
 
@@ -134,82 +177,72 @@ mapsf::mf_theme(bg = "#dfdfe5",
 
 ```
 
-# Theoretical Framework
+# Social: 
 
-https://dataforgood.facebook.com/dfg/docs/tutorial-identification-of-at-risk-populations 
+## Population Dependency Ratio (Facebook)
 
-In the context of migration statistics, forced displacement is often analyzed with the prism of [push and pull factors](https://immigrationforum.org/article/push-or-pull-factors-what-drives-central-american-migrants-to-the-u-s/).
-
-
-|                                                                                                | **Push Factor** (Mitigated by intervention to address root causes within countries of origin)         | **Pull Factor** (Mitigated by migration & Asylum policies of receiving countries)  |
-|------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
-| **Economic Dimension** (Addressed by programme in relation with development & poverty alleviation) | Lack of public services, Unemployement, Overpopulation                                                | More jobs, Better jobs, Higher wages,  promise of a “better individual life”       |
-| **Social Dimension** (Addressed by programme in relation with protection)                          | Violence, insecurity, intolerance towards certain groups, active political or religious persecution,  | Safety, tolerance, freedom                                                         |
-| **Environmental Dimension** (Addressed by programme in relation with resilience & sustainability) | Climate change, natural disasters                                                                     | More livable environment                                                           |
-
-raditional data sources are often
-outdated or lacking appropriate disaggregation. As a remedy,
-satellite imagery has recently become prominent in obtain-
-ing geographically-fine-grained and up-to-date poverty esti-
-mates. Satellite data can pick up signals of economic activity
-by detecting light at night, it can pick up development sta-
-tus by detecting infrastructure such as roads, and it can pick
-up signals for individual household wealth by detecting dif-
-ferent building footprints and roof types. It can, however, not
-look inside the households and pick up signals from individ-
-uals. On the other hand, alternative data sources such as au-
-dience estimates from Facebook’s advertising platform pro-
-vide insights into the devices and internet connection types
-used by individuals in different locations. 
-
-New sensors and abilities to capture flow of information from social medias can help capturing those different dimensions at subnational scale through grid level information:
-
-Economics:
- - Connectedness (Facebook)
- - Weighted Relative Wealth Index (Facebook)
- - Public Services Catchment area (OSM)
- 
- Environment:
- - Agricultural drought frequency Index (FAO) - http://www.fao.org/giews/earthobservation/country/index.jsp?code=SLV&lang=en
- - Climatic Natural Risk - Flood and Cyclone  (Prevention Web)
- - Geologic Natural Risk - Earthquake and Volcano  (Prevention Web)
-
-Social: 
- - Population Dependency Ratio (Facebook)
- - Population movement change (Facebook)
- - Violence (ACLED)
- 
-Information is then compiled and aggregated at admin level 2.
-Composite Indicators are then created
-Different areas are then grouped together based on the values from those composite indicators.
-
-The advantage of this approach is compared to more sophisticaded index like [Inform Colombia](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Subnational-Risk/Colombia) is mostly around simplicity:
-- Level of granularity
-- Data Consistently and freely available worldwide
-- Sensor based indicators are potentially less sensitive to political pressure
-- Can be used in multiple countries easily
-- a be fully automated and audited through reproducible analysis script
-
-The resulting information can complement other traditional source of information both on quantitative (Household Survey) and qualitative (Focus Group Discussions) side.
-
-
-# Calculating Population Weighted Relative Wealth Index
-
-as described in the this [tutorial](https://dataforgood.facebook.com/dfg/docs/tutorial-calculating-population-weighted-relative-wealth-index) 
-
-  * Determine which administrative unit contains the centroid of each RWI tile  
-  
-  * Calculate the bing tile quadkey at zoom level 14 for each point in the population density dataset and sum the population per level 14 tile  
-  
-  * Determine which zoom level 14 (~2.4km bing tile) corresponds to each of the smaller 30m population density tiles, and calculate the sum of population within each zoom level 14 tile.  
-  
-  * Calculate the total population in each administrative region using the population density dataset  
-  
-  * Calculate a population derived weight for each zoom level 14 RWI tile  
-  
-  * Use the weight value to calculate a weighted RWI value and aggregate to the administrative unit level
-  
 ```{r getdatapop, echo = FALSE, message = FALSE, warning = FALSE}
+
+# https://data.humdata.org/dataset/el-salvador-high-resolution-population-density-maps-demographic-estimates
+
+population_all <- rhdx::pull_dataset("el-salvador-high-resolution-population-density-maps-demographic-estimates") %>%
+            get_resource(2) %>%
+            read_resource() %>%
+            as("Raster")
+polyLevel2_sf$total_pop <- exactextractr::exact_extract(population_all, polyLevel2_sf,
+                                      fun = 'sum',
+                                      progress = FALSE)
+
+population_under5 <- pull_dataset("el-salvador-high-resolution-population-density-maps-demographic-estimates") %>%
+  get_resource(4) %>%
+  read_resource() %>%
+  as("Raster")
+
+polyLevel2_sf$under5 <- exactextractr::exact_extract(population_under5, polyLevel2_sf,
+                                        fun = 'sum',
+                                        progress = FALSE)
+
+population_60 <- pull_dataset("el-salvador-high-resolution-population-density-maps-demographic-estimates") %>%
+  get_resource(6) %>%
+  read_resource() %>%
+  as("Raster")
+polyLevel2_sf$elderly_pop <- exactextractr::exact_extract(population_60, polyLevel2_sf,
+                                        fun = 'sum',
+                                        progress = FALSE)
+
+reproductive_women <- pull_dataset("el-salvador-high-resolution-population-density-maps-demographic-estimates") %>%
+  get_resource(12) %>%
+  read_resource() %>%
+  as("Raster")
+polyLevel2_sf$reproductive_women <- exactextractr::exact_extract(reproductive_women, polyLevel2_sf,
+                                        fun = 'sum',
+                                        progress = FALSE)
+
+youth <- pull_dataset("el-salvador-high-resolution-population-density-maps-demographic-estimates") %>%
+  get_resource(14) %>%
+  read_resource() %>%
+  as("Raster")
+polyLevel2_sf$youth <- exactextractr::exact_extract(youth, polyLevel2_sf,
+                                        fun = 'sum',
+                                        progress = FALSE)
+
+
+
+polyLevel2_sf <- polyLevel2_sf %>%
+### % of elderly
+  mutate(percent_elderly = elderly_pop / total_pop)%>%
+### % of elderley
+  mutate(percent_under5 = under5 / total_pop)%>%
+### % of reproductive_women
+  mutate(percent_reproductive_women = reproductive_women / total_pop)%>%
+### % of youth
+  mutate(percent_youth = youth / total_pop)
+
+
+```
+
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
 
 population <-    read.csv(paste0(mainDirroot,"/data-raw/wealth/population_slv_2018-10-01.csv")) 
 
@@ -383,16 +416,434 @@ mapsf::mf_credits(txt = "Source: Facebook Data For Good",
 ```
 
 
-# Relative Wealth Index
+
+
+## Population movement range 
+
+The  [Movement Range data sets ](https://data.humdata.org/dataset/movement-range-maps) is intended to inform on how populations are [responding to physical distancing measures](https://research.fb.com/blog/2020/06/protecting-privacy-in-facebook-mobility-data-during-the-covid-19-response/). In particular, there are two metrics that provide a slightly different perspective on movement trends:
+
+ * __Change in Movement__: looks at how much people are moving around and compares it with a baseline period that predates most social distancing measures. The idea is to understand how much less people are moving around since the onset of the coronavirus epidemic. This is done by quantifying how much people move around by counting the number of level-16 Bing tiles (which are approximately 600 meters by 600 meters in area at the equator) they are seen in within a day. In the dataset noted `all_day_bing_tiles_visited_relative_change`  
+ 
+ * __Stay Put__: looks at the fraction of the population that appear to stay within a small area during an entire day. This metric intends to measure this by calculating the percentage of eligible people who are only observed in a single level-16 Bing tile during the course of a day. In the dataset noted `all_day_ratio_single_tile_users`
+
+
+
+```{r getdatamovement, echo = FALSE, message = FALSE, warning = FALSE}
+
+zip_file_path <- pull_dataset("movement-range-maps") %>%
+  get_resource(2) %>%
+  download_resource()
+
+files <- unzip(zip_file_path, list = TRUE)
+files <- grep("movement-range", files$Name, value = TRUE)
+
+file_path <- unzip(zip_file_path, files = files)
+
+pop_mov <- read_delim(file_path, delim = "\t") %>%
+  mutate(
+    GID_0 = country,
+   # GID_2 = polygon_id,
+    #NAME_1 = gadm1_name,
+    NAME_2 = polygon_name
+  ) %>% 
+  filter(ds >= as.Date("2021-07-25"),
+         ds <= as.Date("2021-07-31")) 
+#glimpse(mli_mov)
+ 
+# levels(as.factor(df$NAME_2))
+# levels(as.factor(df$GID_2))
+
+
+# polyLevel2_sf <- polyLevel2_sf %>%
+# ### Calculate weighted risk score
+#   mutate(risk_score = (percent_elderly * 100) * 
+#            (100 - (all_day_ratio_single_tile_users * 100)) * elderly_pop) %>%
+# ### Calculate gaduate risk score
+#   mutate(risk_score_scaled = 100 * (risk_score - min(risk_score, na.rm = TRUE)) / diff(range(risk_score, na.rm = TRUE)))
+
+
+# ggplot(polyLevel2_sf) +
+#   geom_sf(aes(fill = risk_score_scaled)) +
+#   scale_fill_viridis_c(direction = -1) +
+#   theme_map()
+```
+
+
+```{r getdatamovement1, echo = FALSE, message = FALSE, warning = FALSE}
+movement_range <- rbind(utils::read.delim(paste0(mainDirroot,"/data-raw/movement/movement-range-2021-09-18.txt")),
+                        utils::read.delim(paste0(mainDirroot,"/data-raw/movement/movement-range-data-2020-03-01--2020-12-31.txt")) )
+
+#table(movement_range$country)
+
+# This data includes movement changes measured by Facebook starting from a baseline in February. 
+# 
+# 
+#   * `ds`: Date stamp for movement range data row in YYYY-MM-DD form
+#   * `country`: Three-character ISO-3166 country code
+#   * `polygon_source`: Source of region polygon, either  FIPS  for U.S. data or  GADM  for global data
+#   * `polygon_id`: Unique identifier for region polygon, either numeric string for U.S. FIPS codes or alphanumeric string for GADM regions
+#   * `polygon_name`: Region name
+#   * `all_day_bing_tiles_visited_relative_change`: Positive or negative change in movement relative to baseline
+#   * `all_day_ratio_single_tile_users`: Positive proportion of users staying put within a single location
+#   * `baseline_name`: When baseline movement was calculated pre-COVID-19
+#   * `baseline_type`: How baseline movement was calculated pre-COVID-19
+
+
+```
+
+```{r plot2, echo = FALSE, message = FALSE, warning = FALSE}
+## I strongly recommend to subset unless you want the entire globe. This will be very large and slow if you do not.
+md <- subset(movement_range,country %in% c( "SLV" #, "HND", "MEX","BLZ", "GTM"
+                                            ))
+
+
+md$ds <- as.Date(md$ds, "%Y-%m-%d") 
+#table(md$polygon_name)
+
+#as.character(unique(md$polygon_name))
+
+## Find the maximum and minimum observed stay at home values for all regions and all dates
+max_stay_put = max(md$all_day_ratio_single_tile_users)
+min_stay_put = min(md$all_day_ratio_single_tile_users)
+
+
+## These filtered versions of the data determine the polygon_id which define the overall maximum and minimum values 
+md_filtered <- md %>%
+  group_by(polygon_id) %>% 
+  filter(max(all_day_ratio_single_tile_users) >= max_stay_put) %>%
+  ungroup()
+
+md_filtered2 <- md %>%
+  group_by(polygon_id) %>% 
+  filter(min(all_day_ratio_single_tile_users) <= min_stay_put) %>%
+  ungroup()
+
+```
+ 
+```{r pressure1, echo = FALSE, message = FALSE, warning = FALSE}
+## Produce a histogram of all stay put values for the country. Use this to judge how many standard deviations should be used to define best and worst regions
+ggplot(md, aes(x=all_day_ratio_single_tile_users)) + 
+  geom_histogram(color="black", fill="white",bins = 50) +
+  scale_y_continuous( label = format_si()) + ## Format axis number
+  geom_vline(aes(xintercept=median(all_day_ratio_single_tile_users)),
+             color="blue", 
+             linetype="dashed", 
+             size=1) +
+  labs(x = "Ratio of users staying all day within a single cartographic tile", 
+                 y = " ", 
+                 title = "How mobile people are?",
+                 subtitle = "In Average, 20% of FB users stayed wtihin the same closed location",
+                 caption = "Source: Facebook users Staying Put - Facebook Data For Good - one tile is 600 meters by 600 meters") +
+            geom_hline(yintercept = 0, size = 1.1, colour = "#333333") +
+            unhcRstyle::unhcr_theme(base_size = 8)   + ## Insert UNHCR Style
+            theme(panel.grid.major.y  = element_line(color = "#cbcbcb"), 
+                  panel.grid.major.x  = element_blank(), 
+                  panel.grid.minor = element_blank()) 
+
+```
+
+
+```{r plot3, echo=FALSE}
+
+# 
+# # stay put values for regions within one sd of best performance recorded overlaid above time series of all region
+# 
+# ## Line graphs of stay put values for regions within one sd of best performance recorded overlaid above time series of all regions
+# ggplot(md) +
+#   geom_line(aes(ds, all_day_ratio_single_tile_users, colour = polygon_name)) +
+#   gghighlight(max(all_day_ratio_single_tile_users) >= max_stay_put-sd(md_filtered$all_day_ratio_single_tile_users),
+#               use_direct_label = FALSE,
+#               unhighlighted_params = list(colour = alpha("grey", 0.1))) + 
+#   
+#   facet_wrap(~ polygon_name) +
+#   
+#   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+#   geom_vline(aes(xintercept=median(all_day_ratio_single_tile_users)),
+#              color="blue", 
+#              linetype="dashed", 
+#              size=1) +
+#   labs(x = "Ratio of users staying all day within a single cartographic tile", 
+#                  y = " ", 
+#                  title = "How mobile people are?",
+#                  subtitle = "In Average, 20% of FB users stayed wtihin the same closed location",
+#                  caption = "Source: Facebook users Staying Put - Facebook Data For Good - one tile is 600 meters by 600 meters") +
+#             geom_hline(yintercept = 0, size = 1.1, colour = "#333333") +
+#             unhcRstyle::unhcr_theme(base_size = 8)   + ## Insert UNHCR Style
+#             theme(legend.position = "none",
+#                   panel.grid.major.y  = element_line(color = "#cbcbcb"), 
+#                   panel.grid.major.x  = element_blank(), 
+#                   panel.grid.minor = element_blank(),
+#                   axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+#   
+    
+
+
+```
+
+```{r plot4, echo = FALSE, message = FALSE, warning = FALSE}
+## Line graphs of stay put values for regions within one sd of worst performance 
+# recorded overlaid above time series of all regions
+ggplot(data = md) +
+   geom_line(aes(x = ds, 
+                 y = all_day_ratio_single_tile_users, 
+                 #colour = polygon_name,
+                 group = polygon_name)) +
+   gghighlight(min(all_day_ratio_single_tile_users) <= min_stay_put + sd(md_filtered2$all_day_ratio_single_tile_users),
+               use_direct_label = FALSE, 
+               unhighlighted_params = list(colour = alpha("grey", 0.1))) + 
+  
+   facet_wrap(~ polygon_name) +
+   
+  scale_x_date(labels = scales::date_format("%b")) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  geom_vline(aes(xintercept=median(all_day_ratio_single_tile_users)),
+             color="blue", 
+             linetype="dashed", 
+             size=1) +
+  labs(x = "Ratio of users staying all day within a single cartographic tile", 
+       y = " ", 
+       title = "How mobile people are?",
+       subtitle = "Highlighted area the one beyond Standard Deviation ",
+       caption = "Source: Facebook users Staying Put - Facebook Data For Good - one tile is 600 meters by 600 meters") +
+  geom_hline(yintercept = 0, size = 1.1, colour = "#333333") +
+  unhcRstyle::unhcr_theme(base_size = 8)   + ## Insert UNHCR Style
+  theme(legend.position = "none",
+                  panel.grid.major.y  = element_line(color = "#cbcbcb"), 
+                  panel.grid.major.x  = element_blank(), 
+                  panel.grid.minor = element_blank(),
+                  axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  
+  
+ 
+```
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+## Some fields require renaming to match the field names in the sf shapefile. Each country's polyLevel2.sf will be slightly different in how it encodes the admin fields, so it's not plug and play.
+
+# 
+# 
+# levels(as.factor(polyLevel2_sf$GID_2))
+
+## Setup the date ranges and trim the metric outliers
+ranges = df %>%
+  filter(ds >= '2020-03-01',
+         !is.na(all_day_ratio_single_tile_users)) %>%
+  summarise(p05 = quantile(all_day_ratio_single_tile_users,0.01),
+            p95 = quantile(all_day_ratio_single_tile_users,0.99))
+
+## Will try and plot this date first, but then go to the next earliest if not available in the df dataframe
+target_ds = max(df$ds)-180
+df <- subset(df, ds >= target_ds)
+
+## FUN to generate a map plot for each day of data and save to local disk
+plot_date <- function(joined_spatial, target_ds) {
+  data = joined_spatial %>%
+    filter(ds == target_ds) %>%
+    inner_join(polyLevel2_sf) %>%
+    st_sf()
+  
+  minx = plyr::round_any(ranges$p05, 0.05, ceiling)
+  maxx = plyr::round_any(ranges$p95, 0.05, ceiling)
+  #probably where you set the start date of the dots animation scale
+  days = as.double(difftime(ymd(target_ds),
+                            ymd('2021-01-01'),
+                            units = "days")) + 1
+  print(target_ds)
+  ##dots = paste0(rep('.', days), collapse = '')
+  title = glue('\n Date: {target_ds}')   # \n{dots}')
+
+  
+datg <- data %>%
+    mutate(all_day_ratio_single_tile_users = case_when(all_day_ratio_single_tile_users < minx ~ minx,
+                                                         all_day_ratio_single_tile_users > maxx ~ maxx,
+                                                         TRUE ~ all_day_ratio_single_tile_users))  
+    
+g <-  ggplot() + 
+    
+    geom_sf(data = datg,
+            aes(fill = plyr::round_any(all_day_ratio_single_tile_users, 0.05)),
+            size = 0.02, 
+            color = '#ccbbbb') +
+    
+    # geom_sf(polyLevel2_sf,
+    #           colour="black",
+    #           size=0.2) +
+    # palette = 'YlGnBu' for All, palette = 'PuRd' and direction 1 for Restaurants
+    scale_fill_distiller(type = 'seq', palette = 'YlGnBu', direction = 1,
+                         limits = c(0, 1.0), # use maxx instead of 1.0 if you want to scale the value to the underlying data
+                         labels = scales::percent_format(accuracy = 5)) +
+  
+      
+      unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
+      theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
+            panel.grid.major = element_blank(),
+            panel.background = element_rect(fill = "aliceblue"),
+            axis.text.x  = element_blank(),
+            axis.text.y  = element_blank(),
+            legend.title = element_blank(), 
+            legend.text  = element_text(size = 8),
+            legend.key.size = unit(0.8, "lines"),
+            legend.position = "bottom", 
+            legend.box = "horizontal"
+            )
+  
+  # unhcRstyle::unhcr_theme(base_size = 8)   + ## Insert UNHCR Style
+  # theme(  panel.grid = element_blank(),
+  #         legend.key.height = unit(0.25, 'cm'),
+  #         legend.key.width = unit(0.10, 'cm'),
+  #         axis.text = element_blank(),
+  #         plot.margin = unit(c(0.1,0.1,0.1,0.1), "cm"),
+  #         panel.spacing=unit(c(0,0,0,0), "null"),
+  #         legend.position = c(0.1, 0.1)) +
+  labs(fill = 'Facebook Data for Good \n% Staying Put',
+         title = title)
+  ggsave(glue({'anim/SLV-{target_ds}-staying put.png'}), g, scale = 1.0,
+         width = unit(4, 'cm'),
+         height = unit(4, 'cm'))
+  g
+}
+
+## Create a subdirectory so that you don't flood your working directory with many png files
+if (!fs::dir_exists("anim")) fs::dir_create("anim")
+
+
+## Indicate the start of the date range. Ideally the min ds in df, but also allows hand manipulation if you want to use the dots visualization in the plots as a cheap timeline
+date_range = df %>%
+  filter(ds >= '2020-03-01') %>%
+  distinct(ds) %>%
+  pull(ds)
+
+## Might not be needed, but can help with not grinding a local machine while generating the plots
+plan(multisession)
+
+
+## FUN CALL
+plot_date(df, target_ds)
+
+# ## kicks off iterating through all dates.
+# results = future_map(date_range, ~plot_date(df, .x))
+
+
+
+# list.files(path='anim/', pattern = '*.png', full.names = TRUE) %>% 
+#   image_read() %>% # reads each path file
+#   image_join() %>% # joins image
+#   image_morph(frames = 2) %>%
+#   image_animate(fps=20) %>% # animates, can opt for number of loops
+#   magick::image_write("anim/FileName.gif") # write to current dir
+
+```
+
+
+## Violence
+
+```{r getdataacled, message=FALSE, warning=FALSE,  echo = FALSE,  include=FALSE, cache = TRUE}
+## getting data from ACLED for events... 
+acled.data <- acled.api::acled.api(email.address = Sys.getenv("EMAIL_ADDRESS"),  # see https://developer.acleddata.com/
+                                   access.key = Sys.getenv("ACCESS_KEY"),
+                                   start.date = "2017-01-01",
+                        end.date = lubridate::today(),
+                        country = c( "El Salvador"),
+                        all.variables = TRUE) 
+
+
+
+acledsp <- st_as_sf(acled.data, coords = c("longitude", "latitude"), crs = 4326)
+```
+
+```{r echo = FALSE, message = FALSE, warning = FALSE} 
+acledstewart <- SpatialPosition::stewart(knownpts = acledsp, 
+                     varname = "fatalities",
+                     mask = polyLevel0_sf,
+                     typefct = "exponential", 
+                    ## numeric; distance where the density of probability of the spatial interaction function equals 0.5.
+                     span = 6000,  
+                    ## numeric; impedance factor for the spatial interaction function.
+                     beta = 5, 
+                     returnclass = "sf")
+# Create contour
+acledcontour <- SpatialPosition::isopoly(x = acledstewart,
+                       nclass = 6,
+                       mask = polyLevel0_sf, 
+                       returnclass = "sf")
+
+# Created breaks
+bks <- sort(unique(c(acledcontour$min, acledcontour$max)))
+
+
+# Set a color palette
+pal <- mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
+
+mapsf::mf_init(acledcontour)
+# mapsf::mf_map(polyLevel0_sf, 
+#               col = "#f5f5f3ff", 
+#               border = "#a9b3b4ff", 
+#               add = TRUE)
+# Map the regional GDP per capita
+mapsf::mf_map(x = acledcontour, 
+              var = "center", 
+              type = "choro",
+              leg_pos = "topright",
+              breaks = bks, 
+              pal = pal, 
+              border = NA, 
+              leg_title = "Number of fatalities",
+              #leg_val_rnd = -2, 
+              add = TRUE)
+mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
+mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+# Set a layout
+mapsf::mf_title(txt = "Fatalities in El Salvador")
+mapsf::mf_credits(txt = "Source: ACLED", 
+                   bg = "#ffffff80")
+
+
+```
+
+
+
+
+# Economics
+
+## Relative Wealth Index
 
 Many critical policy decisions, from strategic investments to the allocation of humanitarian aid, rely on data about the geographic distribution of wealth and poverty. 
 
 As explained in a dedicated [paper](https://www.researchgate.net/publication/341999364_The_Relative_Value_of_Facebook_Advertising_Data_for_Poverty_Mapping/download), the [Relative Wealth Index](https://data.humdata.org/dataset/relative-wealth-index) estimates are built by applying machine learning algorithms to vast and heterogeneous data from satellites, mobile phone networks, topographic maps, as well as aggregated and de-identified connectivity data from Facebook.
 
 
+As described in the this [tutorial](https://dataforgood.facebook.com/dfg/docs/tutorial-calculating-population-weighted-relative-wealth-index) 
+
+  * Determine which administrative unit contains the centroid of each RWI tile  
+  
+  * Calculate the bing tile quadkey at zoom level 14 for each point in the population density dataset and sum the population per level 14 tile  
+  
+  * Determine which zoom level 14 (~2.4km bing tile) corresponds to each of the smaller 30m population density tiles, and calculate the sum of population within each zoom level 14 tile.  
+  
+  * Calculate the total population in each administrative region using the population density dataset  
+  
+  * Calculate a population derived weight for each zoom level 14 RWI tile  
+  
+  * Use the weight value to calculate a weighted RWI value and aggregate to the administrative unit level
+  
+
 
 ```{r getdatawealth, echo = FALSE, message = FALSE, warning = FALSE}
-wealth <-   read.csv(paste0(mainDirroot,"/data-raw/wealth/SLV_relative_wealth_index.csv")) 
+
+zip_file_path <- pull_dataset("relative-wealth-index") %>%
+  get_resource(1) %>%
+  download_resource()
+
+files <- unzip(zip_file_path, list = TRUE)
+files <- grep("SLV_relative_wealth_index", files$Name, value = TRUE)
+
+file_path <- unzip(zip_file_path, files = files[1])
+
+wealth <- read.csv(file_path)
+
+
+
+# wealth <-   read.csv(paste0(mainDirroot,"/data-raw/wealth/SLV_relative_wealth_index.csv")) 
 
 # wealth <-  rbind(read.csv(paste0(mainDirroot,"/data-raw/wealth/SLV_relative_wealth_index.csv")) ,
 #                   read.csv(paste0(mainDirroot,"/data-raw/wealth/HND_relative_wealth_index.csv")),
@@ -401,6 +852,43 @@ wealth <-   read.csv(paste0(mainDirroot,"/data-raw/wealth/SLV_relative_wealth_in
 #                  )
 
 wealthsp <- st_as_sf(wealth, coords = c("longitude", "latitude"), crs = 4326)
+
+polyLevel2_sf$total_pop <- exactextractr::exact_extract(wealthsp, polyLevel2_sf,
+                                      fun = 'sum',
+                                      progress = FALSE)
+
+# find points within polygons
+wealth_in_level2 <- st_join(wealthsp, polyLevel2_sf, join = st_within) %>%
+                    group_by(GID_2)%>%
+                    summarise(rwi_avg = avg(rwi))
+
+
+
+
+# Quadkey reference JavaScript implementations
+# https://developer.here.com/documentation/traffic/dev_guide/common/map_tile/topics/quadkeys.html
+
+tileXYToQuadKey = function(xTile, yTile, z) {
+  quadKey = ""
+  for (i in z:1) {
+    digit = 0
+    mask = bitwShiftL(1, i - 1)
+    xtest = as_binary(bitwAnd(xTile, mask))
+    if(any(xtest)) {
+      digit = digit + 1
+    }
+
+    ytest = as_binary(bitwAnd(yTile, mask))
+    if(any(ytest)) {
+      digit = digit + 2
+    }
+    quadKey = paste0(quadKey, digit)
+  }
+  quadKey
+}
+
+
+
 # wealthgrid <- CreateGrid(w = wealthsp, resolution = 3000, returnclass = "sf")
 # # Create a distance matrix between known points (hospital) and mygrid
 # mymat <- CreateDistMatrix(knownpts = wealthsp, unknownpts = wealthgrid)
@@ -534,76 +1022,7 @@ mapsf::mf_credits(txt = "Source: Facebook Data For Good",
 ```
 
 
-## Violence
-
-```{r getdataacled, message=FALSE, warning=FALSE,  echo = FALSE,  include=FALSE, cache = TRUE}
-## getting data from ACLED for events... 
-acled.data <- acled.api::acled.api(email.address = Sys.getenv("EMAIL_ADDRESS"),  # see https://developer.acleddata.com/
-                                   access.key = Sys.getenv("ACCESS_KEY"),
-                                   start.date = "2017-01-01",
-                        end.date = lubridate::today(),
-                        country = c( "El Salvador"),
-                        all.variables = TRUE) 
-
-
-
-acledsp <- st_as_sf(acled.data, coords = c("longitude", "latitude"), crs = 4326)
-```
-
-```{r echo = FALSE, message = FALSE, warning = FALSE} 
-acledstewart <- SpatialPosition::stewart(knownpts = acledsp, 
-                     varname = "fatalities",
-                     mask = polyLevel0_sf,
-                     typefct = "exponential", 
-                    ## numeric; distance where the density of probability of the spatial interaction function equals 0.5.
-                     span = 6000,  
-                    ## numeric; impedance factor for the spatial interaction function.
-                     beta = 5, 
-                     returnclass = "sf")
-# Create contour
-acledcontour <- SpatialPosition::isopoly(x = acledstewart,
-                       nclass = 6,
-                       mask = polyLevel0_sf, 
-                       returnclass = "sf")
-
-# Created breaks
-bks <- sort(unique(c(acledcontour$min, acledcontour$max)))
-
-
-# Set a color palette
-pal <- mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
-
-mapsf::mf_init(acledcontour)
-# mapsf::mf_map(polyLevel0_sf, 
-#               col = "#f5f5f3ff", 
-#               border = "#a9b3b4ff", 
-#               add = TRUE)
-# Map the regional GDP per capita
-mapsf::mf_map(x = acledcontour, 
-              var = "center", 
-              type = "choro",
-              leg_pos = "topright",
-              breaks = bks, 
-              pal = pal, 
-              border = NA, 
-              leg_title = "Number of fatalities",
-              #leg_val_rnd = -2, 
-              add = TRUE)
-mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
-mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
-# Set a layout
-mapsf::mf_title(txt = "Fatalities in El Salvador")
-mapsf::mf_credits(txt = "Source: ACLED", 
-                   bg = "#ffffff80")
-
-
-```
-
-
-
-
-
-#   Social Connectedness Index
+##   Social Connectedness Index
 
 
 an anonymized snapshot of all active Facebook users and their friendship networks to measure the intensity of connectedness between locations. The [Social Connectedness Index (SCI)](https://www.aeaweb.org/articles?id=10.1257/jep.32.3.259) is a measure of the social connectedness between different geographies. Specifically, it measures the relative probability that two individuals across two locations are friends with each other on Facebook.
@@ -983,321 +1402,145 @@ print(p)
 
 
 
-# Movement Range 
-
-The  [Movement Range data sets ](https://data.humdata.org/dataset/movement-range-maps) is intended to inform on how populations are [responding to physical distancing measures](https://research.fb.com/blog/2020/06/protecting-privacy-in-facebook-mobility-data-during-the-covid-19-response/). In particular, there are two metrics that provide a slightly different perspective on movement trends:
-
- * __Change in Movement__: looks at how much people are moving around and compares it with a baseline period that predates most social distancing measures. The idea is to understand how much less people are moving around since the onset of the coronavirus epidemic. This is done by quantifying how much people move around by counting the number of level-16 Bing tiles (which are approximately 600 meters by 600 meters in area at the equator) they are seen in within a day. In the dataset noted `all_day_bing_tiles_visited_relative_change`  
- 
- * __Stay Put__: looks at the fraction of the population that appear to stay within a small area during an entire day. This metric intends to measure this by calculating the percentage of eligible people who are only observed in a single level-16 Bing tile during the course of a day. In the dataset noted `all_day_ratio_single_tile_users`
 
 
+## Public Services
 
-<!--
-3.1 Original source where the data was obtained is cited and, if possible, hyperlinked. 
-3.2 Source data is thoroughly explained (i.e. what was the original purpose of the data, when was it collected, how many variables did the original have, explain any peculiarities of the source data such as how missing values are recorded, or how data was imputed, etc.). 
-3.3 Data importing and cleaning steps are explained in the text (tell me why you are doing the data cleaning activities that you perform) and follow a logical process.
-3.4 Once your data is clean, show what the final data set looks like. However, do not print off a data frame with 200+ rows; show me the data in the most condensed form possible. 
-3.5 Provide summary information about the variables of concern in your cleaned data set. Do not just print off a bunch of code chunks with str(), summary(), etc. Rather, provide me with a consolidated explanation, either with a table that provides summary info for each variable or a nicely written summary paragraph with inline code.
--->
+```{r}
+# https://geocompr.robinlovelace.net/location.html
 
-
-
-```{r getdatamovement, echo = FALSE, message = FALSE, warning = FALSE}
-
-movement_range <- rbind(utils::read.delim(paste0(mainDirroot,"/data-raw/movement/movement-range-2021-09-18.txt")),
-                        utils::read.delim(paste0(mainDirroot,"/data-raw/movement/movement-range-data-2020-03-01--2020-12-31.txt")) )
-
-#table(movement_range$country)
-
-# This data includes movement changes measured by Facebook starting from a baseline in February. 
-# 
-# 
-#   * `ds`: Date stamp for movement range data row in YYYY-MM-DD form
-#   * `country`: Three-character ISO-3166 country code
-#   * `polygon_source`: Source of region polygon, either  FIPS  for U.S. data or  GADM  for global data
-#   * `polygon_id`: Unique identifier for region polygon, either numeric string for U.S. FIPS codes or alphanumeric string for GADM regions
-#   * `polygon_name`: Region name
-#   * `all_day_bing_tiles_visited_relative_change`: Positive or negative change in movement relative to baseline
-#   * `all_day_ratio_single_tile_users`: Positive proportion of users staying put within a single location
-#   * `baseline_name`: When baseline movement was calculated pre-COVID-19
-#   * `baseline_type`: How baseline movement was calculated pre-COVID-19
-
+library(osmdata)
+parks = opq(bbox = "el_slavador") %>% 
+  add_osm_feature(key = "leisure", value = "park") %>% 
+  osmdata_sf()
 
 ```
 
+
+#  Environment:
+
+## Agricultural drought frequency Index 
+
+[FAO-ASI](http://www.fao.org/giews/earthobservation/country/index.jsp?code=SLV&lang=en))
+
+Historic Agricultural Drought Frequency Maps depict the frequency of severe drought in areas where 30 percent/50 percent of the cropland has been affected. The historical frequency of severe droughts (as defined by ASI) is based on the entire ASI times series (1984-2020).
+
+
+```{r}
+# install.packages("pxR")
+# install.packages("sorvi", repos="http://R-Forge.R-project.org")
  
 
-```{r plot2, echo = FALSE, message = FALSE, warning = FALSE}
-## I strongly recommend to subset unless you want the entire globe. This will be very large and slow if you do not.
-md <- subset(movement_range,country %in% c( "SLV" #, "HND", "MEX","BLZ", "GTM"
-                                            ))
+wmshist <- "https://io.apps.fao.org/geoserver/wms/ASIS/HDF/v2?version=1.3.0"
+layerhist <- "HDF"
+
+wmsfao <- "https://io.apps.fao.org/geoserver/wms/ASIS/HDF/v1?version=1.3.0"
+
+layer_crop_season1_30p <- "HDF_C_S1_LA30:ASIS:asis_hdf_c"
+layer_crop_season1_50p <- "HDF_C_S1_LA50:ASIS:asis_hdf_c"
+layer_crop_season2_30p <- "HDF_C_S2_LA30:ASIS:asis_hdf_c"
+layer_crop_season2_50p <- "HDF_C_S2_LA50:ASIS:asis_hdf_c"
 
 
-md$ds <- as.Date(md$ds, "%Y-%m-%d") 
-#table(md$polygon_name)
-
-#as.character(unique(md$polygon_name))
-
-## Find the maximum and minimum observed stay at home values for all regions and all dates
-max_stay_put = max(md$all_day_ratio_single_tile_users)
-min_stay_put = min(md$all_day_ratio_single_tile_users)
+library("leaflet")
+library("sp")
+```
 
 
-## These filtered versions of the data determine the polygon_id which define the overall maximum and minimum values 
-md_filtered <- md %>%
-  group_by(polygon_id) %>% 
-  filter(max(all_day_ratio_single_tile_users) >= max_stay_put) %>%
-  ungroup()
+```{r}
+# this example from the tutorial works
+leaflet() %>% 
+  addTiles() %>% 
+  setView(lat = 13.7167, lng = -88.8602, zoom = 9) %>% 
+  addWMSTiles(
+    wmshist,
+    layers = layerhist,
+    options = WMSTileOptions(format = "image/png", transparent = TRUE) 
+)
 
-md_filtered2 <- md %>%
-  group_by(polygon_id) %>% 
-  filter(min(all_day_ratio_single_tile_users) <= min_stay_put) %>%
-  ungroup()
+
+wmshist1 <- PreprocessWMS(url = LoadWMSurl(provider = "OIVA", service = "Corine"))
+
+test <- sorvi::GetWMSraster(wmshist1, 
+                            layerhist, 
+                            extent = polyLevel2_sf , 
+                            resolution = 25)
+```
+
+
+```{r}
+# this example from the tutorial works
+leaflet() %>% 
+  addTiles() %>% 
+  setView(lat = 13.7167, lng = -88.8602, zoom = 9) %>% 
+  addWMSTiles(
+    wmsfao,
+    layers = layer_crop_season1_30p,
+    options = WMSTileOptions(format = "image/png", transparent = TRUE) 
+)
+```
+
+```{r}
+# this example from the tutorial works
+leaflet() %>% 
+  addTiles() %>% 
+  setView(lat = 13.7167, lng = -88.8602, zoom = 9) %>% 
+  addWMSTiles(
+    wmsfao,
+    layers = layer_crop_season1_50p,
+    options = WMSTileOptions(format = "image/png", transparent = TRUE) 
+)
+```
+
+```{r}
+# this example from the tutorial works
+leaflet() %>% 
+  addTiles() %>% 
+  setView(lat = 13.7167, lng = -88.8602, zoom = 9) %>% 
+  addWMSTiles(
+    wmsfao,
+    layers = layer_crop_season2_50p,
+    options = WMSTileOptions(format = "image/png", transparent = TRUE) 
+)
+```
+
+```{r}
+# this example from the tutorial works
+leaflet() %>% 
+  addTiles() %>% 
+  setView(lat = 13.7167, lng = -88.8602, zoom = 9) %>% 
+  addWMSTiles(
+    wmsfao,
+    layers = layer_crop_season2_30p,
+    options = WMSTileOptions(format = "image/png", transparent = TRUE) 
+)
+
 
 ```
+
+## Climatic Natural Risk - Flood and Cyclone  (Prevention Web)
+## Geologic Natural Risk - Earthquake and Volcano  (Prevention Web)
+  
+
+# Clustering analysis of diffretn areas
+
+## Composite indicators
+
+## Clustering
+
+## Discussion
  
+# Annex
+
+## Leveraging Facebook data for Good dataset
 
 
+People who use Facebook on a mobile device have the option of providing their precise location in order to enable products like Nearby Friends and Find Wi-Fi and to get local content and ads. Different type of products are produced by the [Facebok Data for Good Team]() by aggregating and de-identifying this data. Only people who opt in to Location History and background location collection are included. People with very few location pings in a day are not informative for these trends, and, therefore, we include only those people whose location is observed for a meaningful period of the day.
 
-<!--
-4.1 Discuss how you plan to uncover new information in the data that is not self-evident. What are different ways you could look at this data to answer the questions you want to answer? Do you plan to slice and dice the data in different ways, create new variables, or join separate data frames to create new summary information? How could you summarize your data to answer key questions? 
-4.2 What types of plots and tables will help you to illustrate the findings to your questions? 
-4.3 What do you not know how to do right now that you need to learn to answer your questions? 
-4.4 Do you plan on incorporating any machine learning techniques (i.e. linear regression, discriminant analysis, cluster analysis) to answer your questions? 
--->
+Central America indeed has an important [number of facebook users]and Facebook data for good has released a few [dataset](https://data.humdata.org/organization/facebook?groups=slv)
 
 
+## How to re-use that script
 
-```{r pressure1, echo = FALSE, message = FALSE, warning = FALSE}
-## Produce a histogram of all stay put values for the country. Use this to judge how many standard deviations should be used to define best and worst regions
-ggplot(md, aes(x=all_day_ratio_single_tile_users)) + 
-  geom_histogram(color="black", fill="white",bins = 50) +
-  scale_y_continuous( label = format_si()) + ## Format axis number
-  geom_vline(aes(xintercept=median(all_day_ratio_single_tile_users)),
-             color="blue", 
-             linetype="dashed", 
-             size=1) +
-  labs(x = "Ratio of users staying all day within a single cartographic tile", 
-                 y = " ", 
-                 title = "How mobile people are?",
-                 subtitle = "In Average, 20% of FB users stayed wtihin the same closed location",
-                 caption = "Source: Facebook users Staying Put - Facebook Data For Good - one tile is 600 meters by 600 meters") +
-            geom_hline(yintercept = 0, size = 1.1, colour = "#333333") +
-            unhcRstyle::unhcr_theme(base_size = 8)   + ## Insert UNHCR Style
-            theme(panel.grid.major.y  = element_line(color = "#cbcbcb"), 
-                  panel.grid.major.x  = element_blank(), 
-                  panel.grid.minor = element_blank()) 
-
-```
-
-
-
-```{r plot3, echo=FALSE}
-
-# 
-# # stay put values for regions within one sd of best performance recorded overlaid above time series of all region
-# 
-# ## Line graphs of stay put values for regions within one sd of best performance recorded overlaid above time series of all regions
-# ggplot(md) +
-#   geom_line(aes(ds, all_day_ratio_single_tile_users, colour = polygon_name)) +
-#   gghighlight(max(all_day_ratio_single_tile_users) >= max_stay_put-sd(md_filtered$all_day_ratio_single_tile_users),
-#               use_direct_label = FALSE,
-#               unhighlighted_params = list(colour = alpha("grey", 0.1))) + 
-#   
-#   facet_wrap(~ polygon_name) +
-#   
-#   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-#   geom_vline(aes(xintercept=median(all_day_ratio_single_tile_users)),
-#              color="blue", 
-#              linetype="dashed", 
-#              size=1) +
-#   labs(x = "Ratio of users staying all day within a single cartographic tile", 
-#                  y = " ", 
-#                  title = "How mobile people are?",
-#                  subtitle = "In Average, 20% of FB users stayed wtihin the same closed location",
-#                  caption = "Source: Facebook users Staying Put - Facebook Data For Good - one tile is 600 meters by 600 meters") +
-#             geom_hline(yintercept = 0, size = 1.1, colour = "#333333") +
-#             unhcRstyle::unhcr_theme(base_size = 8)   + ## Insert UNHCR Style
-#             theme(legend.position = "none",
-#                   panel.grid.major.y  = element_line(color = "#cbcbcb"), 
-#                   panel.grid.major.x  = element_blank(), 
-#                   panel.grid.minor = element_blank(),
-#                   axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
-#   
-    
-
-
-```
-
-
-
-```{r plot4, echo = FALSE, message = FALSE, warning = FALSE}
-
-
-
-## Line graphs of stay put values for regions within one sd of worst performance 
-# recorded overlaid above time series of all regions
-ggplot(data = md) +
-   geom_line(aes(x = ds, 
-                 y = all_day_ratio_single_tile_users, 
-                 #colour = polygon_name,
-                 group = polygon_name)) +
-   gghighlight(min(all_day_ratio_single_tile_users) <= min_stay_put + sd(md_filtered2$all_day_ratio_single_tile_users),
-               use_direct_label = FALSE, 
-               unhighlighted_params = list(colour = alpha("grey", 0.1))) + 
-  
-   facet_wrap(~ polygon_name) +
-   
-  scale_x_date(labels = scales::date_format("%b")) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-  geom_vline(aes(xintercept=median(all_day_ratio_single_tile_users)),
-             color="blue", 
-             linetype="dashed", 
-             size=1) +
-  labs(x = "Ratio of users staying all day within a single cartographic tile", 
-       y = " ", 
-       title = "How mobile people are?",
-       subtitle = "Highlighted area the one beyond Standard Deviation ",
-       caption = "Source: Facebook users Staying Put - Facebook Data For Good - one tile is 600 meters by 600 meters") +
-  geom_hline(yintercept = 0, size = 1.1, colour = "#333333") +
-  unhcRstyle::unhcr_theme(base_size = 8)   + ## Insert UNHCR Style
-  theme(legend.position = "none",
-                  panel.grid.major.y  = element_line(color = "#cbcbcb"), 
-                  panel.grid.major.x  = element_blank(), 
-                  panel.grid.minor = element_blank(),
-                  axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
-  
-  
- 
-```
-
-```{r echo = FALSE, message = FALSE, warning = FALSE}
-## Some fields require renaming to match the field names in the sf shapefile. Each country's polyLevel2.sf will be slightly different in how it encodes the admin fields, so it's not plug and play.
-df <- md %>% 
-  rename(
-    GID_0 = country,
-   # GID_2 = polygon_id,
-    #NAME_1 = gadm1_name,
-    NAME_2 = polygon_name
-  )
-# levels(as.factor(df$NAME_2))
-# levels(as.factor(df$GID_2))
-# 
-# 
-# levels(as.factor(polyLevel2_sf$GID_2))
-
-## Setup the date ranges and trim the metric outliers
-ranges = df %>%
-  filter(ds >= '2020-03-01',
-         !is.na(all_day_ratio_single_tile_users)) %>%
-  summarise(p05 = quantile(all_day_ratio_single_tile_users,0.01),
-            p95 = quantile(all_day_ratio_single_tile_users,0.99))
-
-## Will try and plot this date first, but then go to the next earliest if not available in the df dataframe
-target_ds = max(df$ds)-180
-df <- subset(df, ds >= target_ds)
-
-## FUN to generate a map plot for each day of data and save to local disk
-plot_date <- function(joined_spatial, target_ds) {
-  data = joined_spatial %>%
-    filter(ds == target_ds) %>%
-    inner_join(polyLevel2_sf) %>%
-    st_sf()
-  
-  minx = plyr::round_any(ranges$p05, 0.05, ceiling)
-  maxx = plyr::round_any(ranges$p95, 0.05, ceiling)
-  #probably where you set the start date of the dots animation scale
-  days = as.double(difftime(ymd(target_ds),
-                            ymd('2021-01-01'),
-                            units = "days")) + 1
-  print(target_ds)
-  ##dots = paste0(rep('.', days), collapse = '')
-  title = glue('\n Date: {target_ds}')   # \n{dots}')
-
-  
-datg <- data %>%
-    mutate(all_day_ratio_single_tile_users = case_when(all_day_ratio_single_tile_users < minx ~ minx,
-                                                         all_day_ratio_single_tile_users > maxx ~ maxx,
-                                                         TRUE ~ all_day_ratio_single_tile_users))  
-    
-g <-  ggplot() + 
-    
-    geom_sf(data = datg,
-            aes(fill = plyr::round_any(all_day_ratio_single_tile_users, 0.05)),
-            size = 0.02, 
-            color = '#ccbbbb') +
-    
-    # geom_sf(polyLevel2_sf,
-    #           colour="black",
-    #           size=0.2) +
-    # palette = 'YlGnBu' for All, palette = 'PuRd' and direction 1 for Restaurants
-    scale_fill_distiller(type = 'seq', palette = 'YlGnBu', direction = 1,
-                         limits = c(0, 1.0), # use maxx instead of 1.0 if you want to scale the value to the underlying data
-                         labels = scales::percent_format(accuracy = 5)) +
-  
-      
-      unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
-      theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
-            panel.grid.major = element_blank(),
-            panel.background = element_rect(fill = "aliceblue"),
-            axis.text.x  = element_blank(),
-            axis.text.y  = element_blank(),
-            legend.title = element_blank(), 
-            legend.text  = element_text(size = 8),
-            legend.key.size = unit(0.8, "lines"),
-            legend.position = "bottom", 
-            legend.box = "horizontal"
-            )
-  
-  # unhcRstyle::unhcr_theme(base_size = 8)   + ## Insert UNHCR Style
-  # theme(  panel.grid = element_blank(),
-  #         legend.key.height = unit(0.25, 'cm'),
-  #         legend.key.width = unit(0.10, 'cm'),
-  #         axis.text = element_blank(),
-  #         plot.margin = unit(c(0.1,0.1,0.1,0.1), "cm"),
-  #         panel.spacing=unit(c(0,0,0,0), "null"),
-  #         legend.position = c(0.1, 0.1)) +
-  labs(fill = 'Facebook Data for Good \n% Staying Put',
-         title = title)
-  ggsave(glue({'anim/SLV-{target_ds}-staying put.png'}), g, scale = 1.0,
-         width = unit(4, 'cm'),
-         height = unit(4, 'cm'))
-  g
-}
-
-## Create a subdirectory so that you don't flood your working directory with many png files
-if (!fs::dir_exists("anim")) fs::dir_create("anim")
-
-
-## Indicate the start of the date range. Ideally the min ds in df, but also allows hand manipulation if you want to use the dots visualization in the plots as a cheap timeline
-date_range = df %>%
-  filter(ds >= '2020-03-01') %>%
-  distinct(ds) %>%
-  pull(ds)
-
-## Might not be needed, but can help with not grinding a local machine while generating the plots
-plan(multisession)
-
-
-## FUN CALL
-plot_date(df, target_ds)
-
-# ## kicks off iterating through all dates.
-# results = future_map(date_range, ~plot_date(df, .x))
-
-
-
-# list.files(path='anim/', pattern = '*.png', full.names = TRUE) %>% 
-#   image_read() %>% # reads each path file
-#   image_join() %>% # joins image
-#   image_morph(frames = 2) %>%
-#   image_animate(fps=20) %>% # animates, can opt for number of loops
-#   magick::image_write("anim/FileName.gif") # write to current dir
-
-```
-
-
- 
-
+Get the correct project name in HDX
 

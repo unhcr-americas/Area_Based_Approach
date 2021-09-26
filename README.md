@@ -14,7 +14,7 @@ In the context of migration statistics, forced displacement is often analyzed wi
 
 
 
-To efficiently address those factors, humanitarian organisations are increasingly using subnational Area Based Approach. 
+Recent displacement trends show growing numbers of displaced population living outside of designated areas such as camp/camp like setting (traditional camps collective/transit/reception centres, informal settlements) with a majority setting in dispersed locations predominately urban and peri-urban areas such as informal settlements, unfinished buildings or interspersed in host community homes and communities, shared rooms or rental arrangements. To be able to reach, properly assess and understand local dynamics, vulnerabilities and capacities of the displaced and host populations alike, humanitarian organisations are increasingly using subnational [Area Based Approach](https://www.humanitarianlibrary.org/collection/implementing-area-based-approaches). Area based approaches define “an area, rather than a sector or target group, as a primary entry point”. This approach can be particularly appropriate when residents in an affected area face complex, inter-related and multisectoral needs.
 
 Though, traditional statistical data sources are often lacking sufficient geographically-fine-grained disaggregation to inform sub national scale approach and characterization.  Alternative based on sophisticated index like [Inform Colombia](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Subnational-Risk/Colombia) requires extensive expert consultations and might not fully reflect the important dimension to be reflected in the context of forced displacement and migration. 
 
