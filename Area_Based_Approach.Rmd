@@ -618,107 +618,107 @@ ggplot(data = md) +
 ```
 
 ```{r echo = FALSE, message = FALSE, warning = FALSE}
-## Some fields require renaming to match the field names in the sf shapefile. Each country's polyLevel2.sf will be slightly different in how it encodes the admin fields, so it's not plug and play.
-
+# ## Some fields require renaming to match the field names in the sf shapefile. Each country's polyLevel2.sf will be slightly different in how it encodes the admin fields, so it's not plug and play.
+# 
+# # 
+# # 
+# # levels(as.factor(polyLevel2_sf$GID_2))
+# 
+# ## Setup the date ranges and trim the metric outliers
+# ranges = df %>%
+#   filter(ds >= '2020-03-01',
+#          !is.na(all_day_ratio_single_tile_users)) %>%
+#   summarise(p05 = quantile(all_day_ratio_single_tile_users,0.01),
+#             p95 = quantile(all_day_ratio_single_tile_users,0.99))
+# 
+# ## Will try and plot this date first, but then go to the next earliest if not available in the df dataframe
+# target_ds = max(df$ds)-180
+# df <- subset(df, ds >= target_ds)
+# 
+# ## FUN to generate a map plot for each day of data and save to local disk
+# plot_date <- function(joined_spatial, target_ds) {
+#   data = joined_spatial %>%
+#     filter(ds == target_ds) %>%
+#     inner_join(polyLevel2_sf) %>%
+#     st_sf()
+#   
+#   minx = plyr::round_any(ranges$p05, 0.05, ceiling)
+#   maxx = plyr::round_any(ranges$p95, 0.05, ceiling)
+#   #probably where you set the start date of the dots animation scale
+#   days = as.double(difftime(ymd(target_ds),
+#                             ymd('2021-01-01'),
+#                             units = "days")) + 1
+#   print(target_ds)
+#   ##dots = paste0(rep('.', days), collapse = '')
+#   title = glue('\n Date: {target_ds}')   # \n{dots}')
+# 
+#   
+# datg <- data %>%
+#     mutate(all_day_ratio_single_tile_users = case_when(all_day_ratio_single_tile_users < minx ~ minx,
+#                                                          all_day_ratio_single_tile_users > maxx ~ maxx,
+#                                                          TRUE ~ all_day_ratio_single_tile_users))  
+#     
+# g <-  ggplot() + 
+#     
+#     geom_sf(data = datg,
+#             aes(fill = plyr::round_any(all_day_ratio_single_tile_users, 0.05)),
+#             size = 0.02, 
+#             color = '#ccbbbb') +
+#     
+#     # geom_sf(polyLevel2_sf,
+#     #           colour="black",
+#     #           size=0.2) +
+#     # palette = 'YlGnBu' for All, palette = 'PuRd' and direction 1 for Restaurants
+#     scale_fill_distiller(type = 'seq', palette = 'YlGnBu', direction = 1,
+#                          limits = c(0, 1.0), # use maxx instead of 1.0 if you want to scale the value to the underlying data
+#                          labels = scales::percent_format(accuracy = 5)) +
+#   
+#       
+#       unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
+#       theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
+#             panel.grid.major = element_blank(),
+#             panel.background = element_rect(fill = "aliceblue"),
+#             axis.text.x  = element_blank(),
+#             axis.text.y  = element_blank(),
+#             legend.title = element_blank(), 
+#             legend.text  = element_text(size = 8),
+#             legend.key.size = unit(0.8, "lines"),
+#             legend.position = "bottom", 
+#             legend.box = "horizontal"
+#             )
+#   
+#   # unhcRstyle::unhcr_theme(base_size = 8)   + ## Insert UNHCR Style
+#   # theme(  panel.grid = element_blank(),
+#   #         legend.key.height = unit(0.25, 'cm'),
+#   #         legend.key.width = unit(0.10, 'cm'),
+#   #         axis.text = element_blank(),
+#   #         plot.margin = unit(c(0.1,0.1,0.1,0.1), "cm"),
+#   #         panel.spacing=unit(c(0,0,0,0), "null"),
+#   #         legend.position = c(0.1, 0.1)) +
+#   labs(fill = 'Facebook Data for Good \n% Staying Put',
+#          title = title)
+#   ggsave(glue({'anim/SLV-{target_ds}-staying put.png'}), g, scale = 1.0,
+#          width = unit(4, 'cm'),
+#          height = unit(4, 'cm'))
+#   g
+# }
+# 
+# ## Create a subdirectory so that you don't flood your working directory with many png files
+# if (!fs::dir_exists("anim")) fs::dir_create("anim")
 # 
 # 
-# levels(as.factor(polyLevel2_sf$GID_2))
-
-## Setup the date ranges and trim the metric outliers
-ranges = df %>%
-  filter(ds >= '2020-03-01',
-         !is.na(all_day_ratio_single_tile_users)) %>%
-  summarise(p05 = quantile(all_day_ratio_single_tile_users,0.01),
-            p95 = quantile(all_day_ratio_single_tile_users,0.99))
-
-## Will try and plot this date first, but then go to the next earliest if not available in the df dataframe
-target_ds = max(df$ds)-180
-df <- subset(df, ds >= target_ds)
-
-## FUN to generate a map plot for each day of data and save to local disk
-plot_date <- function(joined_spatial, target_ds) {
-  data = joined_spatial %>%
-    filter(ds == target_ds) %>%
-    inner_join(polyLevel2_sf) %>%
-    st_sf()
-  
-  minx = plyr::round_any(ranges$p05, 0.05, ceiling)
-  maxx = plyr::round_any(ranges$p95, 0.05, ceiling)
-  #probably where you set the start date of the dots animation scale
-  days = as.double(difftime(ymd(target_ds),
-                            ymd('2021-01-01'),
-                            units = "days")) + 1
-  print(target_ds)
-  ##dots = paste0(rep('.', days), collapse = '')
-  title = glue('\n Date: {target_ds}')   # \n{dots}')
-
-  
-datg <- data %>%
-    mutate(all_day_ratio_single_tile_users = case_when(all_day_ratio_single_tile_users < minx ~ minx,
-                                                         all_day_ratio_single_tile_users > maxx ~ maxx,
-                                                         TRUE ~ all_day_ratio_single_tile_users))  
-    
-g <-  ggplot() + 
-    
-    geom_sf(data = datg,
-            aes(fill = plyr::round_any(all_day_ratio_single_tile_users, 0.05)),
-            size = 0.02, 
-            color = '#ccbbbb') +
-    
-    # geom_sf(polyLevel2_sf,
-    #           colour="black",
-    #           size=0.2) +
-    # palette = 'YlGnBu' for All, palette = 'PuRd' and direction 1 for Restaurants
-    scale_fill_distiller(type = 'seq', palette = 'YlGnBu', direction = 1,
-                         limits = c(0, 1.0), # use maxx instead of 1.0 if you want to scale the value to the underlying data
-                         labels = scales::percent_format(accuracy = 5)) +
-  
-      
-      unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
-      theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
-            panel.grid.major = element_blank(),
-            panel.background = element_rect(fill = "aliceblue"),
-            axis.text.x  = element_blank(),
-            axis.text.y  = element_blank(),
-            legend.title = element_blank(), 
-            legend.text  = element_text(size = 8),
-            legend.key.size = unit(0.8, "lines"),
-            legend.position = "bottom", 
-            legend.box = "horizontal"
-            )
-  
-  # unhcRstyle::unhcr_theme(base_size = 8)   + ## Insert UNHCR Style
-  # theme(  panel.grid = element_blank(),
-  #         legend.key.height = unit(0.25, 'cm'),
-  #         legend.key.width = unit(0.10, 'cm'),
-  #         axis.text = element_blank(),
-  #         plot.margin = unit(c(0.1,0.1,0.1,0.1), "cm"),
-  #         panel.spacing=unit(c(0,0,0,0), "null"),
-  #         legend.position = c(0.1, 0.1)) +
-  labs(fill = 'Facebook Data for Good \n% Staying Put',
-         title = title)
-  ggsave(glue({'anim/SLV-{target_ds}-staying put.png'}), g, scale = 1.0,
-         width = unit(4, 'cm'),
-         height = unit(4, 'cm'))
-  g
-}
-
-## Create a subdirectory so that you don't flood your working directory with many png files
-if (!fs::dir_exists("anim")) fs::dir_create("anim")
-
-
-## Indicate the start of the date range. Ideally the min ds in df, but also allows hand manipulation if you want to use the dots visualization in the plots as a cheap timeline
-date_range = df %>%
-  filter(ds >= '2020-03-01') %>%
-  distinct(ds) %>%
-  pull(ds)
-
-## Might not be needed, but can help with not grinding a local machine while generating the plots
-plan(multisession)
-
-
-## FUN CALL
-plot_date(df, target_ds)
+# ## Indicate the start of the date range. Ideally the min ds in df, but also allows hand manipulation if you want to use the dots visualization in the plots as a cheap timeline
+# date_range = df %>%
+#   filter(ds >= '2020-03-01') %>%
+#   distinct(ds) %>%
+#   pull(ds)
+# 
+# ## Might not be needed, but can help with not grinding a local machine while generating the plots
+# plan(multisession)
+# 
+# 
+# ## FUN CALL
+# plot_date(df, target_ds)
 
 # ## kicks off iterating through all dates.
 # results = future_map(date_range, ~plot_date(df, .x))
@@ -853,14 +853,15 @@ wealth <- read.csv(file_path)
 
 wealthsp <- st_as_sf(wealth, coords = c("longitude", "latitude"), crs = 4326)
 
-polyLevel2_sf$total_pop <- exactextractr::exact_extract(wealthsp, polyLevel2_sf,
-                                      fun = 'sum',
-                                      progress = FALSE)
+
 
 # find points within polygons
 wealth_in_level2 <- st_join(wealthsp, polyLevel2_sf, join = st_within) %>%
                     group_by(GID_2)%>%
-                    summarise(rwi_avg = avg(rwi))
+                    summarise(rwi_avg =  mean(rwi ),
+                              rwi_sd =  sd(rwi ),
+                              rwi_max =  max(rwi ),
+                              rwi_min =  min(rwi ))
 
 
 
@@ -1409,10 +1410,10 @@ print(p)
 ```{r}
 # https://geocompr.robinlovelace.net/location.html
 
-library(osmdata)
-parks = opq(bbox = "el_slavador") %>% 
-  add_osm_feature(key = "leisure", value = "park") %>% 
-  osmdata_sf()
+# library(osmdata)
+# parks = opq(bbox = "el_slavador") %>% 
+#   add_osm_feature(key = "leisure", value = "park") %>% 
+#   osmdata_sf()
 
 ```
 
@@ -1429,7 +1430,8 @@ Historic Agricultural Drought Frequency Maps depict the frequency of severe drou
 ```{r}
 # install.packages("pxR")
 # install.packages("sorvi", repos="http://R-Forge.R-project.org")
- 
+# gdal_translate -of Gtiff  -outsize 5000 5000 "WMS:https://io.apps.fao.org/geoserver/wms/ASIS/HDF/v2?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=HDF&SRS=EPSG:4326&BBOX=-90.3159,12.8091,-87.4539,14.6022" asi2_slv.tiff
+  
 
 wmshist <- "https://io.apps.fao.org/geoserver/wms/ASIS/HDF/v2?version=1.3.0"
 layerhist <- "HDF"
@@ -1459,12 +1461,12 @@ leaflet() %>%
 )
 
 
-wmshist1 <- PreprocessWMS(url = LoadWMSurl(provider = "OIVA", service = "Corine"))
-
-test <- sorvi::GetWMSraster(wmshist1, 
-                            layerhist, 
-                            extent = polyLevel2_sf , 
-                            resolution = 25)
+# wmshist1 <- PreprocessWMS(url = LoadWMSurl(provider = "OIVA", service = "Corine"))
+# 
+# test <- sorvi::GetWMSraster(wmshist1, 
+#                             layerhist, 
+#                             extent = polyLevel2_sf , 
+#                             resolution = 25)
 ```
 
 
