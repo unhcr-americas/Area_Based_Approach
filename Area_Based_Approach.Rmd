@@ -113,31 +113,41 @@ mainDirroot <- mainDir
 
 ## here we pull our geom3try from GADM 
 
-polyLevel0 <- raster::getData('GADM', country = 'SLV', level = 0)
-## Convert the spatial file to sf to increase speed and ease of plotting
-polyLevel0_sf <- st_as_sf(polyLevel0) %>% 
+
+
+polyLevel0 <- st_read( paste0(mainDirroot,"/data-raw/admin/slv_admbnda_adm0_gadm_20210204.shp"), quiet = TRUE)
+polyLevel1 <- st_read( paste0(mainDirroot,"/data-raw/admin/slv_admbnda_adm1_gadm_20210204.shp"), quiet = TRUE)
+polyLevel2 <- st_read( paste0(mainDirroot,"/data-raw/admin/slv_admbnda_adm2_gadm_20210204.shp"), quiet = TRUE)
+
+# polyLevel0 <- raster::getData('GADM', country = 'SLV', level = 0)
+# ## Convert the spatial file to sf to increase speed and ease of plotting
+polyLevel0_sf <- st_as_sf(polyLevel0) %>%
   ms_simplify()
-
-## Check what you get
-##plot(sf::st_geometry(polyLevel0_sf))
-
-## Fetch shapefiles 
-
-polyLevel1 <- raster::getData('GADM', country = 'SLV', level = 1)
-## Convert the spatial file to sf to increase speed and ease of plotting
-polyLevel1_sf <- st_as_sf(polyLevel1) %>% 
+# 
+# ## Check what you get
+# ##plot(sf::st_geometry(polyLevel0_sf))
+# 
+# ## Fetch shapefiles 
+# 
+# polyLevel1 <- raster::getData('GADM', country = 'SLV', level = 1)
+# ## Convert the spatial file to sf to increase speed and ease of plotting
+polyLevel1_sf <- st_as_sf(polyLevel1) %>%
   ms_simplify()
-
-
-polyLevel2 <- raster::getData('GADM', country = 'SLV', level = 2)
-## Convert the spatial file to sf to increase speed and ease of plotting
-polyLevel2_sf <- st_as_sf(polyLevel2) %>% 
+# 
+# 
+# polyLevel2 <- raster::getData('GADM', country = 'SLV', level = 2)
+# ## Convert the spatial file to sf to increase speed and ease of plotting
+polyLevel2_sf <- st_as_sf(polyLevel2) %>%
   ms_simplify()
-#   st_simplify(preserveTopology=TRUE, dTolerance = .0025)
+# #   st_simplify(preserveTopology=TRUE, dTolerance = .0025)
 
 ## Check what you get
 ##plot(sf::st_geometry(polyLevel2_sf))
+```
 
+
+
+```{r getothermap, echo = FALSE, message = FALSE, warning = FALSE, cache =TRUE}
 # Read in the detailed GADM shapes  - https://data.biogeo.ucdavis.edu/data/gadm3.6/gadm36_levels_shp.zip 
 #shapes_in <- readRDS(paste0(mainDirroot,"/data-raw/gadm/gadm1_nuts3_counties.Rds"))
 gadm1 <- st_read( paste0(mainDirroot,"/data-raw/gadm/gadm36_1.shp"), quiet = TRUE) #%>% 
@@ -166,6 +176,12 @@ counties_map <- counties_map[ , c("GID_1", "NAME_1", "geometry")]
 #plot(sf::st_geometry(counties_map))
 
 ##Set up the tehme for all maps below! 
+
+## Sea #e8f5fe
+## land #d9e0ea
+## Name #828993
+## Border #969b9f
+
 mapsf::mf_theme(bg = "#dfdfe5", 
                 fg = "#0072BC", 
                 # bg = "#cdd2d4", "#faebd7ff",  "#cdd2d4",
@@ -430,16 +446,18 @@ The  [Movement Range data sets ](https://data.humdata.org/dataset/movement-range
 
 ```{r getdatamovement, echo = FALSE, message = FALSE, warning = FALSE}
 
-zip_file_path <- pull_dataset("movement-range-maps") %>%
-  get_resource(2) %>%
-  download_resource()
+# zip_file_path <- pull_dataset("movement-range-maps") %>%
+#   get_resource(2) %>%
+#   download_resource()
+# 
+# files <- unzip(zip_file_path, list = TRUE)
+# files <- grep("movement-range", files$Name, value = TRUE)
+# 
+# file_path <- unzip(zip_file_path, files = files)
 
-files <- unzip(zip_file_path, list = TRUE)
-files <- grep("movement-range", files$Name, value = TRUE)
+file_path <-    paste0(mainDirroot,"/data-raw/movement/movement-range-2021-10-02.txt") 
 
-file_path <- unzip(zip_file_path, files = files)
-
-pop_mov <- read_delim(file_path, delim = "\t") %>%
+movement_range <- read_delim(file_path, delim = "\t") %>%
   mutate(
     GID_0 = country,
    # GID_2 = polygon_id,
@@ -470,8 +488,8 @@ pop_mov <- read_delim(file_path, delim = "\t") %>%
 
 
 ```{r getdatamovement1, echo = FALSE, message = FALSE, warning = FALSE}
-movement_range <- rbind(utils::read.delim(paste0(mainDirroot,"/data-raw/movement/movement-range-2021-09-18.txt")),
-                        utils::read.delim(paste0(mainDirroot,"/data-raw/movement/movement-range-data-2020-03-01--2020-12-31.txt")) )
+# movement_range <- rbind(utils::read.delim(paste0(mainDirroot,"/data-raw/movement/movement-range-2021-09-18.txt")),
+#                         utils::read.delim(paste0(mainDirroot,"/data-raw/movement/movement-range-data-2020-03-01--2020-12-31.txt")) )
 
 #table(movement_range$country)
 
@@ -748,54 +766,226 @@ acled.data <- acled.api::acled.api(email.address = Sys.getenv("EMAIL_ADDRESS"), 
 
 
 
-acledsp <- st_as_sf(acled.data, coords = c("longitude", "latitude"), crs = 4326)
+acledsp <- st_as_sf(acled.data, coords = c("longitude", "latitude"), crs = 4326)  %>%
+ # find points within polygons
+ st_join(., polyLevel2_sf, join = st_within) 
+
+
+# levels(as.factor(acled.data$event_type))
+# levels(as.factor(acled.data$sub_event_type ))
+event <- as.data.frame(unique(acled.data[ ,c("event_type","sub_event_type")]))
+
+View(acled.data[ acled.data$sub_event_type == "Sexual violence", ])
+
+polyLevel2_sf3 <- polyLevel2_sf %>%
+  left_join(
+## Compile some stat by admin 2
+#acled.level2 <-
+  acledsp %>%
+  st_drop_geometry() %>%
+  group_by(ADM2_PCODE) %>%
+ # summarise()%>% 
+  #count( sub_event_type) %>% 
+  count( event_type) %>% 
+  group_by(ADM2_PCODE) %>%
+  #pivot_wider(names_from = sub_event_type, values_from = n) %>%
+  pivot_wider(names_from = event_type, values_from = n) %>%
+  janitor::clean_names() %>%
+  mutate(ADM2_PCODE = adm2_pcode  ) ,
+ by = "ADM2_PCODE")%>%
+  left_join(
+## Compile some stat by admin 2
+#acled.level2 <-
+  acledsp %>%
+  st_drop_geometry() %>%
+  group_by(ADM2_PCODE) %>%
+ # summarise()%>% 
+   count( sub_event_type) %>% 
+ # count( event_type) %>% 
+  group_by(ADM2_PCODE) %>%
+  pivot_wider(names_from = sub_event_type, values_from = n) %>%
+  #pivot_wider(names_from = event_type, values_from = n) %>%
+  janitor::clean_names() %>%
+  mutate(ADM2_PCODE = adm2_pcode  ) ,
+ by = "ADM2_PCODE")
+
 ```
 
-```{r echo = FALSE, message = FALSE, warning = FALSE} 
-acledstewart <- SpatialPosition::stewart(knownpts = acledsp, 
-                     varname = "fatalities",
-                     mask = polyLevel0_sf,
-                     typefct = "exponential", 
-                    ## numeric; distance where the density of probability of the spatial interaction function equals 0.5.
-                     span = 6000,  
-                    ## numeric; impedance factor for the spatial interaction function.
-                     beta = 5, 
-                     returnclass = "sf")
-# Create contour
-acledcontour <- SpatialPosition::isopoly(x = acledstewart,
-                       nclass = 6,
-                       mask = polyLevel0_sf, 
-                       returnclass = "sf")
 
-# Created breaks
-bks <- sort(unique(c(acledcontour$min, acledcontour$max)))
-
-
-# Set a color palette
-pal <- mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
-
-mapsf::mf_init(acledcontour)
-# mapsf::mf_map(polyLevel0_sf, 
-#               col = "#f5f5f3ff", 
-#               border = "#a9b3b4ff", 
-#               add = TRUE)
-# Map the regional GDP per capita
-mapsf::mf_map(x = acledcontour, 
-              var = "center", 
-              type = "choro",
-              leg_pos = "topright",
-              breaks = bks, 
-              pal = pal, 
-              border = NA, 
-              leg_title = "Number of fatalities",
-              #leg_val_rnd = -2, 
-              add = TRUE)
+```{r}
+mapsf::mf_init(polyLevel2_sf3) 
+mf_map( 
+  x = polyLevel2_sf3, 
+  var = "battles",
+  type = "prop",
+  inches = 0.25, 
+  col = "brown4",
+  leg_pos = "bottomleft2",  
+  leg_title = ""
+)
 mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
 mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
 # Set a layout
-mapsf::mf_title(txt = "Fatalities in El Salvador")
-mapsf::mf_credits(txt = "Source: ACLED", 
+mapsf::mf_title(txt = "Battles in El Salvador")
+mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
                    bg = "#ffffff80")
+```
+
+
+```{r}
+#names(polyLevel2_sf3)
+mapsf::mf_init(polyLevel2_sf3) 
+mf_map( 
+  x = polyLevel2_sf3, 
+  var = "explosions_remote_violence",
+  type = "prop",
+  inches = 0.25, 
+  col = "brown4",
+  leg_pos = "bottomleft2",  
+  leg_title = ""
+)
+mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
+mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+# Set a layout
+mapsf::mf_title(txt = "Explosions & Remote Violence in El Salvador")
+mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
+                   bg = "#ffffff80")
+```
+```{r}
+#names(polyLevel2_sf3)
+# "protests"                           "strategic_developments"            
+#"violence_against_civilians"         "riots"   
+mapsf::mf_init(polyLevel2_sf3) 
+mf_map( 
+  x = polyLevel2_sf3, 
+  var = "protests",
+  type = "prop",
+  inches = 0.25, 
+  col = "brown4",
+  leg_pos = "bottomleft2",  
+  leg_title = ""
+)
+mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
+mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+# Set a layout
+mapsf::mf_title(txt = "Protests in El Salvador")
+mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
+                   bg = "#ffffff80")
+```
+
+```{r}
+#names(polyLevel2_sf3)
+# "protests"                           "strategic_developments"            
+#"violence_against_civilians"         "riots"   
+mapsf::mf_init(polyLevel2_sf3) 
+mf_map( 
+  x = polyLevel2_sf3, 
+  var = "strategic_developments",
+  type = "prop",
+  inches = 0.25, 
+  col = "brown4",
+  leg_pos = "bottomleft2",  
+  leg_title = ""
+)
+mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
+mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+# Set a layout
+mapsf::mf_title(txt = "Strategic developmentsin El Salvador")
+mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
+                   bg = "#ffffff80")
+```
+
+```{r}
+#names(polyLevel2_sf3)
+# "protests"                           "strategic_developments"            
+#"violence_against_civilians"         "riots"   
+mapsf::mf_init(polyLevel2_sf3) 
+mf_map( 
+  x = polyLevel2_sf3, 
+  var = "violence_against_civilians",
+  type = "prop",
+  inches = 0.25, 
+  col = "brown4",
+  leg_pos = "bottomleft2",  
+  leg_title = ""
+)
+mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
+mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+# Set a layout
+mapsf::mf_title(txt = "Violence against Civilians in El Salvador")
+mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
+                   bg = "#ffffff80")
+```
+
+```{r}
+#names(polyLevel2_sf3)
+# "protests"                           "strategic_developments"            
+#"violence_against_civilians"         "riots"   
+mapsf::mf_init(polyLevel2_sf3) 
+mf_map( 
+  x = polyLevel2_sf3, 
+  var = "riots",
+  type = "prop",
+  inches = 0.25, 
+  col = "brown4",
+  leg_pos = "bottomleft2",  
+  leg_title = ""
+)
+mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
+mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+# Set a layout
+mapsf::mf_title(txt = "Riots in El Salvador")
+mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
+                   bg = "#ffffff80")
+```
+
+
+
+```{r echo = FALSE, message = FALSE, warning = FALSE} 
+# acledstewart <- SpatialPosition::stewart(knownpts = acledsp, 
+#                      varname = "fatalities",
+#                      mask = polyLevel0_sf,
+#                      typefct = "exponential", 
+#                     ## numeric; distance where the density of probability of the spatial interaction function equals 0.5.
+#                      span = 6000,  
+#                     ## numeric; impedance factor for the spatial interaction function.
+#                      beta = 5, 
+#                      returnclass = "sf")
+# # Create contour
+# acledcontour <- SpatialPosition::isopoly(x = acledstewart,
+#                        nclass = 6,
+#                        mask = polyLevel0_sf, 
+#                        returnclass = "sf")
+# 
+# # Created breaks
+# bks <- sort(unique(c(acledcontour$min, acledcontour$max)))
+# 
+# 
+# # Set a color palette
+# pal <- mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
+# 
+# mapsf::mf_init(acledcontour)
+# # mapsf::mf_map(polyLevel0_sf, 
+# #               col = "#f5f5f3ff", 
+# #               border = "#a9b3b4ff", 
+# #               add = TRUE)
+# # Map the regional GDP per capita
+# mapsf::mf_map(x = acledcontour, 
+#               var = "center", 
+#               type = "choro",
+#               leg_pos = "topright",
+#               breaks = bks, 
+#               pal = pal, 
+#               border = NA, 
+#               leg_title = "Number of fatalities",
+#               #leg_val_rnd = -2, 
+#               add = TRUE)
+# mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
+# mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+# # Set a layout
+# mapsf::mf_title(txt = "Fatalities in El Salvador")
+# mapsf::mf_credits(txt = "Source: ACLED", 
+#                    bg = "#ffffff80")
 
 
 ```
@@ -830,15 +1020,15 @@ As described in the this [tutorial](https://dataforgood.facebook.com/dfg/docs/tu
 
 ```{r getdatawealth, echo = FALSE, message = FALSE, warning = FALSE}
 
-zip_file_path <- pull_dataset("relative-wealth-index") %>%
-  get_resource(1) %>%
-  download_resource()
-
-files <- unzip(zip_file_path, list = TRUE)
-files <- grep("SLV_relative_wealth_index", files$Name, value = TRUE)
-
-file_path <- unzip(zip_file_path, files = files[1])
-
+# zip_file_path <- pull_dataset("relative-wealth-index") %>%
+#   get_resource(1) %>%
+#   download_resource()
+# 
+# files <- unzip(zip_file_path, list = TRUE)
+# files <- grep("SLV_relative_wealth_index", files$Name, value = TRUE)
+# 
+# file_path <- unzip(zip_file_path, files = files[1])
+file_path <-  paste0(mainDirroot,"/data-raw/wealth/SLV_relative_wealth_index.csv") 
 wealth <- read.csv(file_path)
 
 
@@ -853,41 +1043,42 @@ wealth <- read.csv(file_path)
 
 wealthsp <- st_as_sf(wealth, coords = c("longitude", "latitude"), crs = 4326)
 
-
-
+##plot(sf::st_geometry(wealthsp))
+polyLevel2_sf3 <- polyLevel2_sf3 %>%
+  left_join(
 # find points within polygons
-wealth_in_level2 <- st_join(wealthsp, polyLevel2_sf, join = st_within) %>%
-                    group_by(GID_2)%>%
+wealth_in_level2 <-
+       st_join(wealthsp, polyLevel2_sf3, join = st_within) %>%
+       st_drop_geometry() %>%
+                    group_by(ADM2_PCODE) %>%
                     summarise(rwi_avg =  mean(rwi ),
                               rwi_sd =  sd(rwi ),
                               rwi_max =  max(rwi ),
-                              rwi_min =  min(rwi ))
-
-
-
+                              rwi_min =  min(rwi ))  ,
+ by = "ADM2_PCODE")
 
 # Quadkey reference JavaScript implementations
 # https://developer.here.com/documentation/traffic/dev_guide/common/map_tile/topics/quadkeys.html
-
-tileXYToQuadKey = function(xTile, yTile, z) {
-  quadKey = ""
-  for (i in z:1) {
-    digit = 0
-    mask = bitwShiftL(1, i - 1)
-    xtest = as_binary(bitwAnd(xTile, mask))
-    if(any(xtest)) {
-      digit = digit + 1
-    }
-
-    ytest = as_binary(bitwAnd(yTile, mask))
-    if(any(ytest)) {
-      digit = digit + 2
-    }
-    quadKey = paste0(quadKey, digit)
-  }
-  quadKey
-}
-
+# 
+# tileXYToQuadKey = function(xTile, yTile, z) {
+#   quadKey = ""
+#   for (i in z:1) {
+#     digit = 0
+#     mask = bitwShiftL(1, i - 1)
+#     xtest = as_binary(bitwAnd(xTile, mask))
+#     if(any(xtest)) {
+#       digit = digit + 1
+#     }
+# 
+#     ytest = as_binary(bitwAnd(yTile, mask))
+#     if(any(ytest)) {
+#       digit = digit + 2
+#     }
+#     quadKey = paste0(quadKey, digit)
+#   }
+#   quadKey
+# }
+# 
 
 
 # wealthgrid <- CreateGrid(w = wealthsp, resolution = 3000, returnclass = "sf")
@@ -914,10 +1105,13 @@ tileXYToQuadKey = function(xTile, yTile, z) {
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
 # Discretize the variable
-bv <- quantile(wealth$rwi, seq(from = 0, to = 1, length.out = 9))
+bv <- quantile(wealth$rwi, seq(from = 0, to = 1, length.out = 5))
 # Draw the map
 # Set a color palette
-pal <- mf_get_pal(n = 9, palette = "Burg", rev = TRUE)
+pal <- mf_get_pal(n = 5, 
+                  #palette = "Burg", 
+                  pal = c("Reds 2", "Greens"),
+                rev = TRUE)
 
 # Draw the basemap
 mapsf::mf_theme(bg = "#cdd2d4", mar = c(0,0,1.2,0), tab = FALSE)
@@ -933,7 +1127,7 @@ mapsf::mf_map(x = wealthsp,
        breaks = bv, 
        pal = pal, 
        border = NA, 
-       leg_title = "Relative Wealth Index",
+       leg_title = "",
        #leg_val_rnd = -2, 
        add = TRUE)
 mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
@@ -1045,11 +1239,45 @@ https://data.humdata.org/dataset/social-connectedness-index
     # output_folder = The folder to save the maps to
     # scale_from_ptile = The maps color buckets are created from scaling up from the Xth percentile of any region pair. This sets that X (defaults to 25).
 
-dir.sci_dat_gadm1_nuts3_counties <- paste0(mainDirroot,"/data-raw/connected/gadm1_nuts3_counties_gadm1_nuts3_counties_Aug2020.tsv")
-
+connectedness <- paste0(mainDirroot,"/data-raw/connected/gadm1_nuts3_counties_gadm1_nuts3_counties_Aug2020.tsv")
 # Read in the detailed GADM SCI data (this dataset is quite large and 
 # this line of code will likely take a minute or so)
-sci_dat <- read_tsv(dir.sci_dat_gadm1_nuts3_counties)
+sci_dat <- read_tsv(connectedness)
+
+# nlevels(as.factor(sci_dat$user_loc))
+# nlevels(as.factor(sci_dat$fr_loc))
+
+# country_sci <- rename(sci_dat, sci=scaled_sci)  %>% 
+#   filter(str_detect(user_loc, "SLV")) %>% 
+#   group_by(user_loc ) %>% 
+#   summarise(total.count=n(),  
+#                count=sum(is.na(sci)),
+#                maxsci =max(sci, na.rm=TRUE))  
+
+country_sci <-  sci_dat   %>% 
+  filter(str_detect(user_loc, "SLV")) %>% 
+  filter(scaled_sci > 1000 ) %>% 
+  group_by(user_loc ) %>% 
+  summarise( world1000 =n(),  
+               maxsciworld1000 =max(scaled_sci, na.rm=TRUE)) %>% 
+  
+    left_join( sci_dat   %>% 
+    filter(str_detect(user_loc, "SLV")) %>% 
+    filter(str_detect(fr_loc, "USA")) %>% 
+    filter(scaled_sci > 1000 ) %>% 
+    group_by(user_loc ) %>% 
+    summarise( usa1000 =n(),  
+                 maxsciusa1000 =max(scaled_sci, na.rm=TRUE)),
+    by = "user_loc")
+
+
+
+```
+
+
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+
 country_sci <- rename(sci_dat, sci=scaled_sci)  %>% 
   filter(str_detect(user_loc, "SLV")) %>% 
   filter(str_detect(fr_loc, "SLV"))
@@ -1428,20 +1656,68 @@ Historic Agricultural Drought Frequency Maps depict the frequency of severe drou
 
 
 ```{r}
-# install.packages("pxR")
-# install.packages("sorvi", repos="http://R-Forge.R-project.org")
+
 # gdal_translate -of Gtiff  -outsize 5000 5000 "WMS:https://io.apps.fao.org/geoserver/wms/ASIS/HDF/v2?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=HDF&SRS=EPSG:4326&BBOX=-90.3159,12.8091,-87.4539,14.6022" asi2_slv.tiff
-  
+
+
+## save locallly a geotiff from the WMS server
+# system("gdal_translate -of Gtiff  -outsize 5000 5000 \"WMS:https://io.apps.fao.org/geoserver/wms/ASIS/HDF/v2?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=HDF&SRS=EPSG:4326&BBOX=-90.3159,12.8091,-87.4539,14.6022\" /data-raw/fao/asi2_slv.tiff")  
+
+# load raster in an R object called 'DEM'
+ASIpath <- paste0(mainDirroot,"/data-raw/fao/asi2_slv.tiff")
+ASI <- raster(ASIpath) 
+
+GDALinfo(ASIpath)
+
+range(values(ASI)[,1])
+
+# turn raster into data.frame and copy the colortable
+ASI.df <- data.frame(rasterToPoints(ASI))
+names(ASI.df)[3] <-  "value"
+
+coltab <- colortable(ASI)
+coltab <- coltab[(unique(ASI))+1]
+# give the colors their apropriate names:
+names(coltab) <- 0:(length(coltab) - 1) 
+
+# only define the colors used in the raster image
+from <- min(ASI.df[[3]], na.rm = T)+1 
+to <- max(ASI.df[[3]], na.rm = T)+1
+used_cols <- coltab[from:to] 
+
+# plot:
+ggplot(ASI.df, 
+       maxpixels = 5e5) +
+ # facet_wrap(~ variable) +
+  geom_tile(aes(x= x, y = y, fill = value)) +
+  scale_fill_gradientn(colours=used_cols) +
+  coord_equal()
+
+ggplot(ASI, maxpixels=5e5) + 
+  geom_tile(aes(fill = value)) +
+  facet_wrap(~ variable) +
+  scale_fill_gradientn(colours=coltab, guide=FALSE) +
+  coord_equal()
+
+ASI.img <- melt(ASI)
+colTab <- attr(ASI, "legend")@colortable
+names(colTab) <- 0:(length(colTab) - 1)
+valTab <- sort(unique(ASI.df[[3]]))
+
+plot(ASI, 
+     main="Historic Agricultural Drought Frequency")
 
 wmshist <- "https://io.apps.fao.org/geoserver/wms/ASIS/HDF/v2?version=1.3.0"
 layerhist <- "HDF"
 
-wmsfao <- "https://io.apps.fao.org/geoserver/wms/ASIS/HDF/v1?version=1.3.0"
 
-layer_crop_season1_30p <- "HDF_C_S1_LA30:ASIS:asis_hdf_c"
-layer_crop_season1_50p <- "HDF_C_S1_LA50:ASIS:asis_hdf_c"
-layer_crop_season2_30p <- "HDF_C_S2_LA30:ASIS:asis_hdf_c"
-layer_crop_season2_50p <- "HDF_C_S2_LA50:ASIS:asis_hdf_c"
+
+# wmsfao <- "https://io.apps.fao.org/geoserver/wms/ASIS/HDF/v1?version=1.3.0"
+# 
+# layer_crop_season1_30p <- "HDF_C_S1_LA30:ASIS:asis_hdf_c"
+# layer_crop_season1_50p <- "HDF_C_S1_LA50:ASIS:asis_hdf_c"
+# layer_crop_season2_30p <- "HDF_C_S2_LA30:ASIS:asis_hdf_c"
+# layer_crop_season2_50p <- "HDF_C_S2_LA50:ASIS:asis_hdf_c"
 
 
 library("leaflet")
@@ -1471,52 +1747,52 @@ leaflet() %>%
 
 
 ```{r}
-# this example from the tutorial works
-leaflet() %>% 
-  addTiles() %>% 
-  setView(lat = 13.7167, lng = -88.8602, zoom = 9) %>% 
-  addWMSTiles(
-    wmsfao,
-    layers = layer_crop_season1_30p,
-    options = WMSTileOptions(format = "image/png", transparent = TRUE) 
-)
+# # this example from the tutorial works
+# leaflet() %>% 
+#   addTiles() %>% 
+#   setView(lat = 13.7167, lng = -88.8602, zoom = 9) %>% 
+#   addWMSTiles(
+#     wmsfao,
+#     layers = layer_crop_season1_30p,
+#     options = WMSTileOptions(format = "image/png", transparent = TRUE) 
+# )
 ```
-
+ 
 ```{r}
-# this example from the tutorial works
-leaflet() %>% 
-  addTiles() %>% 
-  setView(lat = 13.7167, lng = -88.8602, zoom = 9) %>% 
-  addWMSTiles(
-    wmsfao,
-    layers = layer_crop_season1_50p,
-    options = WMSTileOptions(format = "image/png", transparent = TRUE) 
-)
+# # this example from the tutorial works
+# leaflet() %>% 
+#   addTiles() %>% 
+#   setView(lat = 13.7167, lng = -88.8602, zoom = 9) %>% 
+#   addWMSTiles(
+#     wmsfao,
+#     layers = layer_crop_season1_50p,
+#     options = WMSTileOptions(format = "image/png", transparent = TRUE) 
+# )
 ```
-
+ 
 ```{r}
-# this example from the tutorial works
-leaflet() %>% 
-  addTiles() %>% 
-  setView(lat = 13.7167, lng = -88.8602, zoom = 9) %>% 
-  addWMSTiles(
-    wmsfao,
-    layers = layer_crop_season2_50p,
-    options = WMSTileOptions(format = "image/png", transparent = TRUE) 
-)
+# # this example from the tutorial works
+# leaflet() %>% 
+#   addTiles() %>% 
+#   setView(lat = 13.7167, lng = -88.8602, zoom = 9) %>% 
+#   addWMSTiles(
+#     wmsfao,
+#     layers = layer_crop_season2_50p,
+#     options = WMSTileOptions(format = "image/png", transparent = TRUE) 
+# )
 ```
-
+ 
 ```{r}
-# this example from the tutorial works
-leaflet() %>% 
-  addTiles() %>% 
-  setView(lat = 13.7167, lng = -88.8602, zoom = 9) %>% 
-  addWMSTiles(
-    wmsfao,
-    layers = layer_crop_season2_30p,
-    options = WMSTileOptions(format = "image/png", transparent = TRUE) 
-)
-
+# # this example from the tutorial works
+# leaflet() %>% 
+#   addTiles() %>% 
+#   setView(lat = 13.7167, lng = -88.8602, zoom = 9) %>% 
+#   addWMSTiles(
+#     wmsfao,
+#     layers = layer_crop_season2_30p,
+#     options = WMSTileOptions(format = "image/png", transparent = TRUE) 
+# )
+# 
 
 ```
 
@@ -1524,7 +1800,7 @@ leaflet() %>%
 ## Geologic Natural Risk - Earthquake and Volcano  (Prevention Web)
   
 
-# Clustering analysis of diffretn areas
+# Clustering analysis of different areas
 
 ## Composite indicators
 
