@@ -79,19 +79,19 @@ library(dplyr)
 library(zoo)
 library(raster)
 library(sf)
+library(leaflet)
+library(sp)
 library(glue)
+library(exactextractr)
 library(furrr)
 library(rmapshaper)
 library(magick)
-library(magrittr)
-library(cartography)
+library(magrittr) 
 library(mapsf)
-library(potential)
-library(SpatialPosition)
+library(potential) 
 library(sp)
 library(kableExtra)
-
-library(exactextractr)
+library(matrixStats)
 
 # remotes::install_gitlab("dickoa/rhxl") ## rhdx dependency
 # remotes::install_gitlab("dickoa/rhdx") ## github mirror also avalailable
@@ -141,6 +141,10 @@ polyLevel2_sf <- st_as_sf(polyLevel2) %>%
 
 ## Check what you get
 ##plot(sf::st_geometry(polyLevel2_sf))
+
+ocean <- st_read( paste0(mainDirroot,"/data-raw/ocean/ne_50m_ocean.shp"), quiet = TRUE)
+
+
 ```
 
 
@@ -173,20 +177,34 @@ counties_map <- counties_map[ , c("GID_1", "NAME_1", "geometry")]
 #levels(as.factor(counties_map$STATEFP))
 
 #plot(sf::st_geometry(counties_map))
+```
 
-##Set up the tehme for all maps below! 
 
-## Sea #e8f5fe
-## land #d9e0ea
+
+```{r mapsftheme, echo = FALSE, message = FALSE, warning = FALSE, cache =TRUE}
+##Set up the theme for all maps below! 
+
+## Sea #B3D8F0
 ## Name #828993
-## Border #969b9f
+## Border #93A3AB
+## Country #E2E7EB
+## Feature country #FFFFFF
+##
 
-mapsf::mf_theme(bg = "#dfdfe5", 
-                fg = "#0072BC", 
+# Select a font already installed on your system !!
+par(family="Lato")
+# set a theme
+mapsf::mf_theme(bg = "#E2E7EB",  ## background color --> Used country 
                 # bg = "#cdd2d4", "#faebd7ff",  "#cdd2d4",
-                mar = c(0,0,1.2,0),
+                mar = c(0, 0, 2, 0), ## margins
+                tab = FALSE,  # if TRUE the title is displayed as a 'tab'
+                fg = "#0072BC",  ## foreground color --> for the top title - use UNHCR Blue..
+                pos = "left", # position, one of 'left', 'center', 'right'
+                inner = FALSE, # if TRUE the title is displayed inside the plot area.
+                line = 2, #number of lines used for the title
+                cex = 1.5, #cex of the title
                 #font = "Lato",
-                tab = FALSE)
+                font = 1 ) #font of the title
 
 
 
@@ -271,7 +289,7 @@ population <-    read.csv(paste0(mainDirroot,"/data-raw/wealth/population_slv_20
                  
 populationsp <- st_as_sf(population, coords = c("longitude", "latitude"), crs = 4326)
 
-world <- st_as_sf(world.spdf)
+#world <- st_as_sf(world.spdf)
 # Discretize the variable
 bv <- quantile(population$population_2020, seq(from = 0, to = 1, length.out = 9))
 # Draw the map
@@ -282,10 +300,17 @@ pal <- mf_get_pal(n = 9, palette = "RdPu", rev = TRUE)
 
 ```{r echo = FALSE, message = FALSE, warning = FALSE}
 
-
 mapsf::mf_init(populationsp)
-mapsf::mf_map(world, col = "#f5f5f3ff", 
-              border = "#a9b3b4ff", add = TRUE)
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
+ 
 # Map the regional GDP per capita
 mapsf::mf_map(x = populationsp, 
               var = "population_2020", 
@@ -297,10 +322,9 @@ mapsf::mf_map(x = populationsp,
        leg_title = "Population Density",
      #  leg_val_rnd = -2, 
        add = TRUE)
-mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
-mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
 # Set a layout
-mapsf::mf_title(txt = "Population Density in El Salvador")
+mapsf::mf_title(txt = "Population Density in El Salvador", 
+                fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: Facebook Data For Good", 
            bg = "#ffffff80")
 
@@ -417,10 +441,9 @@ mapsf::mf_credits(txt = "Source: Facebook Data For Good",
 #               leg_title = "Population Density",
 #               #leg_val_rnd = -2, 
 #               add = TRUE)
-# mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
-# mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
 # # Set a layout
-# mapsf::mf_title(txt = "Population Density in El Salvador")
+# mapsf::mf_title(txt = "Population Density in El Salvador", 
+#                fg = "#FFFFFF")
 # mapsf::mf_credits(txt = "Source: Facebook Data For Good", 
 #                    bg = "#ffffff80")
 
@@ -801,7 +824,7 @@ polyLevel2_sf <- polyLevel2_sf %>%
   group_by(ADM2_PCODE) %>%
  # summarise()%>% 
   #count( sub_event_type) %>% 
-  count( event_type) %>% 
+  dplyr::count( event_type) %>% 
   group_by(ADM2_PCODE) %>%
   #pivot_wider(names_from = sub_event_type, values_from = n) %>%
   pivot_wider(names_from = event_type, values_from = n) %>%
@@ -815,7 +838,7 @@ polyLevel2_sf <- polyLevel2_sf %>%
   st_drop_geometry() %>%
   group_by(ADM2_PCODE) %>%
  # summarise()%>% 
-   count( sub_event_type) %>% 
+   dplyr::count( sub_event_type) %>% 
  # count( event_type) %>% 
   group_by(ADM2_PCODE) %>%
   pivot_wider(names_from = sub_event_type, values_from = n) %>%
@@ -829,6 +852,15 @@ polyLevel2_sf <- polyLevel2_sf %>%
 
 ```{r}
 mapsf::mf_init(polyLevel2_sf) 
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
 mapsf::mf_map( 
   x = polyLevel2_sf, 
   var = "battles",
@@ -838,10 +870,10 @@ mapsf::mf_map(
   leg_pos = "bottomleft2",  
   leg_title = ""
 )
-mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
-mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+
 # Set a layout
-mapsf::mf_title(txt = "Battles in El Salvador")
+mapsf::mf_title(txt = "Battles in El Salvador", 
+                fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
                    bg = "#ffffff80")
 ```
@@ -850,6 +882,15 @@ mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018"
 ```{r}
 #names(polyLevel2_sf)
 mapsf::mf_init(polyLevel2_sf) 
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
 mapsf::mf_map( 
   x = polyLevel2_sf, 
   var = "explosions_remote_violence",
@@ -859,10 +900,10 @@ mapsf::mf_map(
   leg_pos = "bottomleft2",  
   leg_title = ""
 )
-mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
-mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+ 
 # Set a layout
-mapsf::mf_title(txt = "Explosions & Remote Violence in El Salvador")
+mapsf::mf_title(txt = "Explosions & Remote Violence in El Salvador", 
+                fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
                    bg = "#ffffff80")
 ```
@@ -871,6 +912,15 @@ mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018"
 # "protests"                           "strategic_developments"            
 #"violence_against_civilians"         "riots"   
 mapsf::mf_init(polyLevel2_sf) 
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
 mapsf::mf_map( 
   x = polyLevel2_sf, 
   var = "protests",
@@ -880,10 +930,10 @@ mapsf::mf_map(
   leg_pos = "bottomleft2",  
   leg_title = ""
 )
-mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
-mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+ 
 # Set a layout
-mapsf::mf_title(txt = "Protests in El Salvador")
+mapsf::mf_title(txt = "Protests in El Salvador", 
+                fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
                    bg = "#ffffff80")
 ```
@@ -893,6 +943,15 @@ mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018"
 # "protests"                           "strategic_developments"            
 #"violence_against_civilians"         "riots"   
 mapsf::mf_init(polyLevel2_sf) 
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
 mapsf::mf_map( 
   x = polyLevel2_sf, 
   var = "strategic_developments",
@@ -902,10 +961,10 @@ mapsf::mf_map(
   leg_pos = "bottomleft2",  
   leg_title = ""
 )
-mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
-mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+ 
 # Set a layout
-mapsf::mf_title(txt = "Strategic developmentsin El Salvador")
+mapsf::mf_title(txt = "Strategic developmentsin El Salvador", 
+                fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
                    bg = "#ffffff80")
 ```
@@ -915,6 +974,15 @@ mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018"
 # "protests"                           "strategic_developments"            
 #"violence_against_civilians"         "riots"   
 mapsf::mf_init(polyLevel2_sf) 
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
 mapsf::mf_map( 
   x = polyLevel2_sf, 
   var = "violence_against_civilians",
@@ -924,10 +992,10 @@ mapsf::mf_map(
   leg_pos = "bottomleft2",  
   leg_title = ""
 )
-mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
-mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+ 
 # Set a layout
-mapsf::mf_title(txt = "Violence against Civilians in El Salvador")
+mapsf::mf_title(txt = "Violence against Civilians in El Salvador", 
+                fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
                    bg = "#ffffff80")
 ```
@@ -937,6 +1005,15 @@ mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018"
 # "protests"                           "strategic_developments"            
 #"violence_against_civilians"         "riots"   
 mapsf::mf_init(polyLevel2_sf) 
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
 mapsf::mf_map( 
   x = polyLevel2_sf, 
   var = "riots",
@@ -946,10 +1023,10 @@ mapsf::mf_map(
   leg_pos = "bottomleft2",  
   leg_title = ""
 )
-mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
-mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+ 
 # Set a layout
-mapsf::mf_title(txt = "Riots in El Salvador")
+mapsf::mf_title(txt = "Riots in El Salvador", 
+                fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
                    bg = "#ffffff80")
 ```
@@ -980,6 +1057,15 @@ mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018"
 # pal <- mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
 # 
 # mapsf::mf_init(acledcontour)
+# mapsf::mf_map(ocean, 
+#               col = "#B3D8F0", 
+#               border = NA, 
+#               add = TRUE)
+# mapsf::mf_map(polyLevel2_sf, 
+#               add = TRUE, 
+#               lwd = 0.5, 
+#               border = "#93A3AB", 
+#               col = "#FFFFFF")
 # # mapsf::mf_map(polyLevel0_sf, 
 # #               col = "#f5f5f3ff", 
 # #               border = "#a9b3b4ff", 
@@ -995,10 +1081,10 @@ mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018"
 #               leg_title = "Number of fatalities",
 #               #leg_val_rnd = -2, 
 #               add = TRUE)
-# mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
-# mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+
 # # Set a layout
-# mapsf::mf_title(txt = "Fatalities in El Salvador")
+# mapsf::mf_title(txt = "Fatalities in El Salvador", 
+#                fg = "#FFFFFF")
 # mapsf::mf_credits(txt = "Source: ACLED", 
 #                    bg = "#ffffff80")
 
@@ -1128,12 +1214,18 @@ pal <- mf_get_pal(n = 5,
                   pal = c("Reds 2", "Greens"),
                 rev = TRUE)
 
-# Draw the basemap
-mapsf::mf_theme(bg = "#cdd2d4", mar = c(0,0,1.2,0), tab = FALSE)
+ 
 
 mapsf::mf_init(wealthsp)
-mapsf::mf_map(world, col = "#f5f5f3ff", 
-              border = "#a9b3b4ff", add = TRUE)
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
 # Map the regional GDP per capita
 mapsf::mf_map(x = wealthsp, 
               var = "rwi", 
@@ -1145,10 +1237,10 @@ mapsf::mf_map(x = wealthsp,
        leg_title = "",
        #leg_val_rnd = -2, 
        add = TRUE)
-mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
-mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+
 # Set a layout
-mapsf::mf_title(txt = "Relative Wealth Index in El Salvador")
+mapsf::mf_title(txt = "Relative Wealth Index in El Salvador", 
+                fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: Facebook Data For Good", 
            bg = "#ffffff80")
 
@@ -1185,11 +1277,15 @@ pal <- mf_get_pal(n = 9, palette = "Burg", rev = TRUE)
  
 
 mapsf::mf_init(wealthcontour)
-# mapsf::mf_map(polyLevel0_sf, 
-#               col = "#f5f5f3ff", 
-#               border = "#a9b3b4ff", 
-#               add = TRUE)
-# Map the regional GDP per capita
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
 mapsf::mf_map(x = wealthcontour, 
               var = "center", 
               type = "choro",
@@ -1199,11 +1295,10 @@ mapsf::mf_map(x = wealthcontour,
               border = NA, 
               leg_title = "Relative Wealth Index",
               #leg_val_rnd = -2, 
-              add = TRUE)
-mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
-mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+              add = TRUE) 
 # Set a layout
-mapsf::mf_title(txt = "Relative Wealth Index in El Salvador")
+mapsf::mf_title(txt = "Relative Wealth Index in El Salvador", 
+                fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: Facebook Data For Good", 
                    bg = "#ffffff80")
 
@@ -1333,79 +1428,79 @@ x1 <- quantile(country_sci$sci, scale_from_ptile/100)
   x100 <- x1 * 100
 
   
-for ( curr_region_code in unique(country_sci$user_loc))  {
-  
-## curr_region_code <- "SLV1" 
-dat <- filter(country_sci, user_loc == curr_region_code)
-    
-# Merge with shape files
-dat_map <- 
-    inner_join(dat, shapes_in, by=c("fr_loc")) %>% 
-    st_as_sf
-
-# region_name_col  <- "name"
-# fr_country_col  <- "fr_country"
-
-
-# Create clean buckets for these levels
-dat_map <- dat_map %>% 
-      mutate(sci_bkt = case_when(
-        sci < x1 ~ str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
-        sci < x2 ~ "1-2x",
-        sci < x3 ~ "2-3x",
-        sci < x5 ~ "3-5x",
-        sci < x10 ~ "5-10x",
-        sci < x25 ~ "10-25x",
-        sci < x100 ~ "25-100x",
-        sci >= x100 ~ ">= 100x")) %>% 
-      mutate(sci_bkt = factor(sci_bkt, levels=c(str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
-                                                "1-2x", "2-3x", "3-5x", "5-10x", "10-25x", "25-100x", ">= 100x")))
-    
-# Get the map of the region you are in
-curr_region_outline <- dat_map %>% 
-    filter(fr_loc == curr_region_code)
-    
-curr_region_name <- curr_region_outline$NAME_1
-
-
-
-# Plot the data
-p <- ggplot(st_transform(dat_map, "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")) +
-      geom_sf(aes(fill = sci_bkt), 
-              colour="#DADADA", 
-              size=0.25) +
-      geom_sf(data=curr_region_outline, 
-              fill="#A00000", 
-              colour="#A00000", 
-              size=0.5) +
-  
-
-      scale_fill_brewer(palette = "GnBu", na.value="#F5F5F5", drop=FALSE) +
-  
-      labs(title = paste0("Internal Social Connectedness Index for department: ",curr_region_name) ,
-           subtitle = "El Salvador, as of August 2020",
-           x = "",
-           y = "",
-           fill = "SCI", 
-           caption = "Source: Facebook Data For Good ") + 
-      
-      unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
-      theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
-            panel.grid.major = element_blank(),
-            panel.background = element_rect(fill = "aliceblue"),
-            axis.text.x  = element_blank(),
-            axis.text.y  = element_blank(),
-            legend.title = element_blank(), 
-            legend.text  = element_text(size = 8),
-            legend.key.size = unit(0.8, "lines"),
-            legend.position = "bottom", 
-            legend.box = "horizontal"
-            ) # +
-      #guides(fill = guide_legend(nrow = 1, title.hjust = 0.5))
-
-print(p)
-  
-}
+# for ( curr_region_code in unique(country_sci$user_loc))  {
+#   
+# ## curr_region_code <- "SLV1" 
+# dat <- filter(country_sci, user_loc == curr_region_code)
+#     
+# # Merge with shape files
+# dat_map <- 
+#     inner_join(dat, shapes_in, by=c("fr_loc")) %>% 
+#     st_as_sf
+# 
+# # region_name_col  <- "name"
+# # fr_country_col  <- "fr_country"
+# 
+# 
+# # Create clean buckets for these levels
+# dat_map <- dat_map %>% 
+#       mutate(sci_bkt = case_when(
+#         sci < x1 ~ str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
+#         sci < x2 ~ "1-2x",
+#         sci < x3 ~ "2-3x",
+#         sci < x5 ~ "3-5x",
+#         sci < x10 ~ "5-10x",
+#         sci < x25 ~ "10-25x",
+#         sci < x100 ~ "25-100x",
+#         sci >= x100 ~ ">= 100x")) %>% 
+#       mutate(sci_bkt = factor(sci_bkt, levels=c(str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
+#                                                 "1-2x", "2-3x", "3-5x", "5-10x", "10-25x", "25-100x", ">= 100x")))
+#     
+# # Get the map of the region you are in
+# curr_region_outline <- dat_map %>% 
+#     filter(fr_loc == curr_region_code)
+#     
+# curr_region_name <- curr_region_outline$NAME_1
+# 
+# 
+# 
+# # Plot the data
+# p <- ggplot(st_transform(dat_map, "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")) +
+#       geom_sf(aes(fill = sci_bkt), 
+#               colour="#DADADA", 
+#               size=0.25) +
+#       geom_sf(data=curr_region_outline, 
+#               fill="#A00000", 
+#               colour="#A00000", 
+#               size=0.5) +
+#   
+# 
+#       scale_fill_brewer(palette = "GnBu", na.value="#F5F5F5", drop=FALSE) +
+#   
+#       labs(title = paste0("Internal Social Connectedness Index for department: ",curr_region_name) ,
+#            subtitle = "El Salvador, as of August 2020",
+#            x = "",
+#            y = "",
+#            fill = "SCI", 
+#            caption = "Source: Facebook Data For Good ") + 
+#       
+#       unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
+#       theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
+#             panel.grid.major = element_blank(),
+#             panel.background = element_rect(fill = "aliceblue"),
+#             axis.text.x  = element_blank(),
+#             axis.text.y  = element_blank(),
+#             legend.title = element_blank(), 
+#             legend.text  = element_text(size = 8),
+#             legend.key.size = unit(0.8, "lines"),
+#             legend.position = "bottom", 
+#             legend.box = "horizontal"
+#             ) # +
+#       #guides(fill = guide_legend(nrow = 1, title.hjust = 0.5))
+# 
+# print(p)
+#   
+# }
 
 ```
 
@@ -1456,78 +1551,78 @@ x25 <- x1 * 25
 x100 <- x1 * 100
 
   
-for ( curr_region_code in unique(country_sci$user_loc))  {
-  
-## curr_region_code <- "SLV1" 
-dat <- filter(country_sci, user_loc == curr_region_code)
-    
-# Merge with shape files
-dat_map <- 
-    inner_join(dat, shapes_in, by=c("fr_loc")) %>% 
-    st_as_sf  %>% 
-    mutate(sci_bkt = case_when(
-        sci < x1 ~ str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
-        sci < x2 ~ "1-2x",
-        sci < x3 ~ "2-3x",
-        sci < x5 ~ "3-5x",
-        sci < x10 ~ "5-10x",
-        sci < x25 ~ "10-25x",
-        sci < x100 ~ "25-100x",
-        sci >= x100 ~ ">= 100x")) %>% 
-    mutate(sci_bkt = factor(sci_bkt, levels=c(str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
-                                                "1-2x", "2-3x", "3-5x", "5-10x", "10-25x", "25-100x", ">= 100x")))
-    
-# Get the map of the region you are in
-curr_region_outline <-
-    inner_join(dat, shapes_in, by=c("user_loc"="fr_loc")) %>% 
-    filter(user_loc == curr_region_code) %>% 
-    head(1)  %>% 
-   st_as_sf() 
-    
-curr_region_name <-  curr_region_outline$NAME_1 
-##plot(sf::st_geometry(curr_region_outline))
-
-
-# Plot the data
-p <- ggplot(  ) +
-      geom_sf(data=shapes_in, 
-              colour="black", 
-              size=0.1) +
-      geom_sf(data=dat_map, aes(fill = sci_bkt), 
-              colour="#DADADA", 
-              size=0.15) +
-      geom_sf(data=curr_region_outline, 
-              fill="#A00000", 
-              colour="#A00000", 
-              size=0.5) +
-  
-
-      scale_fill_brewer(palette = "GnBu", na.value="#F5F5F5", drop=FALSE) +
-  
-      labs(title = paste0("International Social Connectedness Index for department: ",curr_region_name) ,
-           subtitle = "El Salvador to Honduras, Guatemala & Mexico, as of August 2020",
-           x = "",
-           y = "",
-           fill = "SCI", 
-           caption = "Source: Facebook Data For Good ") + 
-      
-      unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
-      theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
-            panel.grid.major = element_blank(),
-            panel.background = element_rect(fill = "aliceblue"),
-            axis.text.x  = element_blank(),
-            axis.text.y  = element_blank(),
-            legend.title = element_blank(), 
-            legend.text  = element_text(size = 8),
-            legend.key.size = unit(0.8, "lines"),
-            legend.position = "bottom", 
-            legend.box = "horizontal"
-            ) # +
-      #guides(fill = guide_legend(nrow = 1, title.hjust = 0.5))
-
-print(p)
-  
-}
+# for ( curr_region_code in unique(country_sci$user_loc))  {
+#   
+# ## curr_region_code <- "SLV1" 
+# dat <- filter(country_sci, user_loc == curr_region_code)
+#     
+# # Merge with shape files
+# dat_map <- 
+#     inner_join(dat, shapes_in, by=c("fr_loc")) %>% 
+#     st_as_sf  %>% 
+#     mutate(sci_bkt = case_when(
+#         sci < x1 ~ str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
+#         sci < x2 ~ "1-2x",
+#         sci < x3 ~ "2-3x",
+#         sci < x5 ~ "3-5x",
+#         sci < x10 ~ "5-10x",
+#         sci < x25 ~ "10-25x",
+#         sci < x100 ~ "25-100x",
+#         sci >= x100 ~ ">= 100x")) %>% 
+#     mutate(sci_bkt = factor(sci_bkt, levels=c(str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
+#                                                 "1-2x", "2-3x", "3-5x", "5-10x", "10-25x", "25-100x", ">= 100x")))
+#     
+# # Get the map of the region you are in
+# curr_region_outline <-
+#     inner_join(dat, shapes_in, by=c("user_loc"="fr_loc")) %>% 
+#     filter(user_loc == curr_region_code) %>% 
+#     head(1)  %>% 
+#    st_as_sf() 
+#     
+# curr_region_name <-  curr_region_outline$NAME_1 
+# ##plot(sf::st_geometry(curr_region_outline))
+# 
+# 
+# # Plot the data
+# p <- ggplot(  ) +
+#       geom_sf(data=shapes_in, 
+#               colour="black", 
+#               size=0.1) +
+#       geom_sf(data=dat_map, aes(fill = sci_bkt), 
+#               colour="#DADADA", 
+#               size=0.15) +
+#       geom_sf(data=curr_region_outline, 
+#               fill="#A00000", 
+#               colour="#A00000", 
+#               size=0.5) +
+#   
+# 
+#       scale_fill_brewer(palette = "GnBu", na.value="#F5F5F5", drop=FALSE) +
+#   
+#       labs(title = paste0("International Social Connectedness Index for department: ",curr_region_name) ,
+#            subtitle = "El Salvador to Honduras, Guatemala & Mexico, as of August 2020",
+#            x = "",
+#            y = "",
+#            fill = "SCI", 
+#            caption = "Source: Facebook Data For Good ") + 
+#       
+#       unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
+#       theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
+#             panel.grid.major = element_blank(),
+#             panel.background = element_rect(fill = "aliceblue"),
+#             axis.text.x  = element_blank(),
+#             axis.text.y  = element_blank(),
+#             legend.title = element_blank(), 
+#             legend.text  = element_text(size = 8),
+#             legend.key.size = unit(0.8, "lines"),
+#             legend.position = "bottom", 
+#             legend.box = "horizontal"
+#             ) # +
+#       #guides(fill = guide_legend(nrow = 1, title.hjust = 0.5))
+# 
+# print(p)
+#   
+# }
 
 ```
 
@@ -1581,78 +1676,78 @@ x25 <- x1 * 25
 x100 <- x1 * 100
 
   
-for ( curr_region_code in unique(country_sci$user_loc))  {
-  
-## curr_region_code <- "SLV1" 
-dat <- filter(country_sci, user_loc == curr_region_code)
-    
-# Merge with shape files
-dat_map <- 
-    inner_join(dat, shapes_in, by=c("fr_loc")) %>% 
-    st_as_sf  %>% 
-    mutate(sci_bkt = case_when(
-        sci < x1 ~ str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
-        sci < x2 ~ "1-2x",
-        sci < x3 ~ "2-3x",
-        sci < x5 ~ "3-5x",
-        sci < x10 ~ "5-10x",
-        sci < x25 ~ "10-25x",
-        sci < x100 ~ "25-100x",
-        sci >= x100 ~ ">= 100x")) %>% 
-    mutate(sci_bkt = factor(sci_bkt, levels=c(str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
-                                                "1-2x", "2-3x", "3-5x", "5-10x", "10-25x", "25-100x", ">= 100x")))
-    
-# Get the map of the region you are in
-curr_region_outline <-
-    inner_join(dat, shapes_in, by=c("user_loc"="fr_loc")) %>% 
-    filter(user_loc == curr_region_code) %>% 
-    head(1)  %>% 
-   st_as_sf() 
-    
-curr_region_name <-  curr_region_outline$NAME_1 
-##plot(sf::st_geometry(curr_region_outline))
-
-
-# Plot the data
-p <- ggplot(  ) +
-      geom_sf(data=shapes_in, 
-              colour="black", 
-              size=0.1) +
-      geom_sf(data=dat_map, aes(fill = sci_bkt), 
-              colour="#DADADA", 
-              size=0.15) +
-      geom_sf(data=curr_region_outline, 
-              fill="#A00000", 
-              colour="#A00000", 
-              size=0.5) +
-  
-
-      scale_fill_brewer(palette = "GnBu", na.value="#F5F5F5", drop=FALSE) +
-  
-      labs(title = paste0("Interntional Social Connectedness Index for department: ",curr_region_name) ,
-           subtitle = "El Salvador to USA, Honduras, Guatemala & Mexico, as of August 2020",
-           x = "",
-           y = "",
-           fill = "SCI", 
-           caption = "Source: Facebook Data For Good ") + 
-      
-      unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
-      theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
-            panel.grid.major = element_blank(),
-            panel.background = element_rect(fill = "aliceblue"),
-            axis.text.x  = element_blank(),
-            axis.text.y  = element_blank(),
-            legend.title = element_blank(), 
-            legend.text  = element_text(size = 8),
-            legend.key.size = unit(0.8, "lines"),
-            legend.position = "bottom", 
-            legend.box = "horizontal"
-            ) # +
-      #guides(fill = guide_legend(nrow = 1, title.hjust = 0.5))
-
-print(p)
-  
-}
+# for ( curr_region_code in unique(country_sci$user_loc))  {
+#   
+# ## curr_region_code <- "SLV1" 
+# dat <- filter(country_sci, user_loc == curr_region_code)
+#     
+# # Merge with shape files
+# dat_map <- 
+#     inner_join(dat, shapes_in, by=c("fr_loc")) %>% 
+#     st_as_sf  %>% 
+#     mutate(sci_bkt = case_when(
+#         sci < x1 ~ str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
+#         sci < x2 ~ "1-2x",
+#         sci < x3 ~ "2-3x",
+#         sci < x5 ~ "3-5x",
+#         sci < x10 ~ "5-10x",
+#         sci < x25 ~ "10-25x",
+#         sci < x100 ~ "25-100x",
+#         sci >= x100 ~ ">= 100x")) %>% 
+#     mutate(sci_bkt = factor(sci_bkt, levels=c(str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
+#                                                 "1-2x", "2-3x", "3-5x", "5-10x", "10-25x", "25-100x", ">= 100x")))
+#     
+# # Get the map of the region you are in
+# curr_region_outline <-
+#     inner_join(dat, shapes_in, by=c("user_loc"="fr_loc")) %>% 
+#     filter(user_loc == curr_region_code) %>% 
+#     head(1)  %>% 
+#    st_as_sf() 
+#     
+# curr_region_name <-  curr_region_outline$NAME_1 
+# ##plot(sf::st_geometry(curr_region_outline))
+# 
+# 
+# # Plot the data
+# p <- ggplot(  ) +
+#       geom_sf(data=shapes_in, 
+#               colour="black", 
+#               size=0.1) +
+#       geom_sf(data=dat_map, aes(fill = sci_bkt), 
+#               colour="#DADADA", 
+#               size=0.15) +
+#       geom_sf(data=curr_region_outline, 
+#               fill="#A00000", 
+#               colour="#A00000", 
+#               size=0.5) +
+#   
+# 
+#       scale_fill_brewer(palette = "GnBu", na.value="#F5F5F5", drop=FALSE) +
+#   
+#       labs(title = paste0("Interntional Social Connectedness Index for department: ",curr_region_name) ,
+#            subtitle = "El Salvador to USA, Honduras, Guatemala & Mexico, as of August 2020",
+#            x = "",
+#            y = "",
+#            fill = "SCI", 
+#            caption = "Source: Facebook Data For Good ") + 
+#       
+#       unhcRstyle::unhcr_theme(base_size = 12)  + ## Insert UNHCR Style
+#       theme(#panel.grid.major = element_line(color = gray(.5),  linetype = "dashed", size = 0.5),
+#             panel.grid.major = element_blank(),
+#             panel.background = element_rect(fill = "aliceblue"),
+#             axis.text.x  = element_blank(),
+#             axis.text.y  = element_blank(),
+#             legend.title = element_blank(), 
+#             legend.text  = element_text(size = 8),
+#             legend.key.size = unit(0.8, "lines"),
+#             legend.position = "bottom", 
+#             legend.box = "horizontal"
+#             ) # +
+#       #guides(fill = guide_legend(nrow = 1, title.hjust = 0.5))
+# 
+# print(p)
+#   
+# }
 
 ```
 
@@ -1747,8 +1842,6 @@ layerhist <- "HDF"
 # layer_crop_season2_50p <- "HDF_C_S2_LA50:ASIS:asis_hdf_c"
 
 
-library("leaflet")
-library("sp")
 ```
 
 
@@ -2301,9 +2394,9 @@ this.indic.matrix.norm2 <- cbind( #row.names(scores.this),
   ci_mpi_est, # Mazziotta-Pareto Index
   ci_wroclaw_est) # Wroclaw taxonomy method
 
-
-kable(this.indic.matrix.norm2, caption = "Composite with different algorithm") %>%
-           kableExtra::kable_styling(bootstrap_options = c("striped", "bordered", "condensed", "responsive"), font_size = 9)
+# 
+# kable(this.indic.matrix.norm2, caption = "Composite with different algorithm") %>%
+#            kableExtra::kable_styling(bootstrap_options = c("striped", "bordered", "condensed", "responsive"), font_size = 9)
 
 ```
 
@@ -2411,8 +2504,8 @@ this.indic.matrix.norm3 <- Compind::normalise_ci(this.indic.matrix.norm22,
                                         method = 3)
 this.indic.matrix.norm3 <- this.indic.matrix.norm3$ci_norm
 
-kable(this.indic.matrix.norm3, caption = "Location Ranking with different algorithms") %>%
-           kableExtra::kable_styling(bootstrap_options = c("striped", "bordered", "condensed", "responsive"), font_size = 9)
+# kable(this.indic.matrix.norm3, caption = "Location Ranking with different algorithms") %>%
+#            kableExtra::kable_styling(bootstrap_options = c("striped", "bordered", "condensed", "responsive"), font_size = 9)
 
 
 
@@ -2498,9 +2591,8 @@ this.indic.matrix.norm4$Location <- NULL
 this.indic.matrix.norm5 <- this.indic.matrix.norm4
 this.indic.matrix.norm5$Average <- rowMeans(this.indic.matrix.norm4, na.rm = FALSE, dims = 1:ncol(this.indic.matrix.norm4))
 
-library(matrixStats)
-this.indic.matrix.norm5$Min <- rowMins(as.matrix(this.indic.matrix.norm4))
-this.indic.matrix.norm5$Max <- rowMaxs(as.matrix(this.indic.matrix.norm4)) 
+this.indic.matrix.norm5$Min <- matrixStats::rowMins(as.matrix(this.indic.matrix.norm4))
+this.indic.matrix.norm5$Max <- matrixStats::rowMaxs(as.matrix(this.indic.matrix.norm4)) 
 this.indic.matrix.norm5$Location <- row.names(this.indic.matrix.norm4)
 
 this.indic.matrix.norm5$Location <- reorder(this.indic.matrix.norm5$Location, this.indic.matrix.norm5$Average)
@@ -2562,22 +2654,33 @@ polyLevel2_sf <- cbind(polyLevel2_sf, this.composite)
 
 #quint <- quantile(this.composite[ ,1], na.rm = TRUE)
 
-table(Hmisc::cut2(this.composite[ ,1], g = 6) )
+#table(Hmisc::cut2(this.composite[ ,1], g = 6) )
 
 polyLevel2_sf$quint2 <- Hmisc::cut2(this.composite[ ,1], g = 6) 
+save(polyLevel2_sf,file= paste0(mainDirroot,"/data-raw/polyLevel2_sf.Rda"))
 ```
 
 ### Severity Index on a map
 
 We can now visualize the thematic indicator on a map.
 
-An initial visualisation will be to present both the severity and the population size affected by this severity.
+An initial visualization will be to present both the severity and the population size affected by this severity.
 
 ```{r, message=FALSE, warning=FALSE, fig.height= 10, fig.width= 10}
 
 ## Color scale - https://developer.r-project.org/Blog/public/2019/04/01/hcl-based-color-palettes-in-grdevices/
 
 mapsf::mf_init(polyLevel2_sf) 
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+
 mapsf::mf_prop_typo( 
   x = polyLevel2_sf, 
   var = c("total_pop", "quint2"),
@@ -2598,15 +2701,17 @@ mapsf::mf_prop_typo(
   leg_frame = c(TRUE, TRUE),
   add = TRUE
 )
-mapsf::mf_map(polyLevel2_sf, add = TRUE, lwd = 0.5, border = "grey30", col = NA)
-mapsf::mf_map(world, col = NA, border = "#7DA9B8", add = TRUE)
+
 # Set a layout
-mapsf::mf_title(txt = "Areas Characterisation - El Salvador")
+mapsf::mf_title(txt = "Areas Characterisation - El Salvador", 
+                fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: Multiple Indicators aggregated at level 2",
                    bg = "#ffffff80") 
 
 
 ```
+
+
  
 # Annex
 
