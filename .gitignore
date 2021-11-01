@@ -27,3 +27,13 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 data-raw
+Area_Based_Approach.Rproj
+.RDataTmp
+.RDataTmp1
+.RDataTmp2
+.RDataTmp3
+.RDataTmp4
+.RDataTmp5
+.RDataTmp6
+.RDataTmp7
+.RDataTmp8
