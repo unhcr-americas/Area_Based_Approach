@@ -73,14 +73,14 @@ mainDirroot <- substring(mainDir, 0 , nchar(mainDir) - 10)
 ```{r getmap, echo = FALSE, message = FALSE, warning = FALSE, cache =TRUE}
 
 ## here we pull our geometry
-polyLevel0 <- st_read( paste0(mainDirroot,"/data-raw/admin/SLV/slv_admbnda_adm0_gadm_20210204.shp"), quiet = TRUE)
-polyLevel1 <- st_read( paste0(mainDirroot,"/data-raw/admin/SLV/slv_admbnda_adm1_gadm_20210204.shp"), quiet = TRUE)
-polyLevel2 <- st_read( paste0(mainDirroot,"/data-raw/admin/SLV/slv_admbnda_adm2_gadm_20210204.shp"), quiet = TRUE)
+polyLevel0 <- sf::st_read( paste0(mainDirroot,"/data-raw/admin/SLV/slv_admbnda_adm0_gadm_20210204.shp"), quiet = TRUE)
+polyLevel1 <- sf::st_read( paste0(mainDirroot,"/data-raw/admin/SLV/slv_admbnda_adm1_gadm_20210204.shp"), quiet = TRUE)
+polyLevel2 <- sf::st_read( paste0(mainDirroot,"/data-raw/admin/SLV/slv_admbnda_adm2_gadm_20210204.shp"), quiet = TRUE)
 
 # polyLevel0 <- raster::getData('GADM', country = 'SLV', level = 0)
 # ## Convert the spatial file to sf to increase speed and ease of plotting
-polyLevel0_sf <- st_as_sf(polyLevel0) %>%
-  ms_simplify()
+polyLevel0_sf <- sf::st_as_sf(polyLevel0) %>%
+  rmapshaper::ms_simplify()
 # 
 # ## Check what you get
 # ##plot(sf::st_geometry(polyLevel0_sf))
@@ -89,20 +89,20 @@ polyLevel0_sf <- st_as_sf(polyLevel0) %>%
 # 
 # polyLevel1 <- raster::getData('GADM', country = 'SLV', level = 1)
 # ## Convert the spatial file to sf to increase speed and ease of plotting
-polyLevel1_sf <- st_as_sf(polyLevel1) %>%
-  ms_simplify()
+polyLevel1_sf <- sf::st_as_sf(polyLevel1) %>%
+  rmapshaper::ms_simplify()
 # 
 # 
 # polyLevel2 <- raster::getData('GADM', country = 'SLV', level = 2)
 # ## Convert the spatial file to sf to increase speed and ease of plotting
-polyLevel2_sf <- st_as_sf(polyLevel2) %>%
-  ms_simplify()
+polyLevel2_sf <- sf::st_as_sf(polyLevel2) %>%
+  rmapshaper::ms_simplify()
 # #   st_simplify(preserveTopology=TRUE, dTolerance = .0025)
 
 ## Check what you get
 ##plot(sf::st_geometry(polyLevel2_sf))
 
-ocean <- st_read( paste0(mainDirroot,"/data-raw/ocean/ne_50m_ocean.shp"), quiet = TRUE)
+ocean <- sf::st_read( paste0(mainDirroot,"/data-raw/ocean/ne_50m_ocean.shp"), quiet = TRUE)
 
 
 ```
@@ -112,8 +112,8 @@ ocean <- st_read( paste0(mainDirroot,"/data-raw/ocean/ne_50m_ocean.shp"), quiet 
 ```{r getothermap, echo = FALSE, message = FALSE, warning = FALSE, cache =TRUE}
 # Read in the detailed GADM shapes  - https://data.biogeo.ucdavis.edu/data/gadm3.6/gadm36_levels_shp.zip 
 #shapes_in <- readRDS(paste0(mainDirroot,"/data-raw/gadm/gadm1_nuts3_counties.Rds"))
-gadm1 <- st_read( paste0(mainDirroot,"/data-raw/gadm/gadm36_1.shp"), quiet = TRUE) #%>% 
-  #ms_simplify()
+gadm1 <- sf::st_read( paste0(mainDirroot,"/data-raw/gadm/gadm36_1.shp"), quiet = TRUE) #%>% 
+  #rmapshaper::ms_simplify()
 ##plot(sf::st_geometry(gadm1))
 
 # USCounties <- raster::getData('GADM', country = 'USA', level = 2)
@@ -122,15 +122,15 @@ gadm1 <- st_read( paste0(mainDirroot,"/data-raw/gadm/gadm36_1.shp"), quiet = TRU
 library(tigris)
 options(tigris_use_cache = TRUE)
 counties_map <- tigris::counties(cb = TRUE) %>% 
-  st_as_sf()  %>% 
-  st_transform(crs=4326)  %>% 
-  #st_transform(crs("+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"))  %>% 
+  sf::st_as_sf()  %>% 
+  sf::st_transform(crs=4326)  %>% 
+  #sf::st_transform(crs("+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"))  %>% 
   mutate(GID_1 = paste0("USA",STATEFP, COUNTYFP),
          NAME_1 = NAME)  %>% 
   ### Remov Hawai & Alaska, Guama , Samoa, Virgin islan..
   filter( !(STATEFP %in% c("15", "02", "60", "66", "69", "78"))) %>% 
   #select(GID_1, NAME_1) %>%
-  ms_simplify()
+  rmapshaper::ms_simplify()
 
 counties_map <- counties_map[ , c("GID_1", "NAME_1", "geometry")]
 
@@ -186,7 +186,7 @@ polyLevel2_sf$total_pop <- exactextractr::exact_extract(population_all, polyLeve
                                       fun = 'sum',
                                       progress = FALSE)
 
-population_under5 <- pull_dataset("el-salvador-high-resolution-population-density-maps-demographic-estimates") %>%
+population_under5 <- rhdx::pull_dataset("el-salvador-high-resolution-population-density-maps-demographic-estimates") %>%
   get_resource(4) %>%
   read_resource() %>%
   as("Raster")
@@ -195,7 +195,7 @@ polyLevel2_sf$under5 <- exactextractr::exact_extract(population_under5, polyLeve
                                         fun = 'sum',
                                         progress = FALSE)
 
-population_60 <- pull_dataset("el-salvador-high-resolution-population-density-maps-demographic-estimates") %>%
+population_60 <- rhdx::pull_dataset("el-salvador-high-resolution-population-density-maps-demographic-estimates") %>%
   get_resource(6) %>%
   read_resource() %>%
   as("Raster")
@@ -203,7 +203,7 @@ polyLevel2_sf$elderly_pop <- exactextractr::exact_extract(population_60, polyLev
                                         fun = 'sum',
                                         progress = FALSE)
 
-reproductive_women <- pull_dataset("el-salvador-high-resolution-population-density-maps-demographic-estimates") %>%
+reproductive_women <- rhdx::pull_dataset("el-salvador-high-resolution-population-density-maps-demographic-estimates") %>%
   get_resource(12) %>%
   read_resource() %>%
   as("Raster")
@@ -211,7 +211,7 @@ polyLevel2_sf$reproductive_women <- exactextractr::exact_extract(reproductive_wo
                                         fun = 'sum',
                                         progress = FALSE)
 
-youth <- pull_dataset("el-salvador-high-resolution-population-density-maps-demographic-estimates") %>%
+youth <- rhdx::pull_dataset("el-salvador-high-resolution-population-density-maps-demographic-estimates") %>%
   get_resource(14) %>%
   read_resource() %>%
   as("Raster")
@@ -247,9 +247,9 @@ population <-    read.csv(paste0(mainDirroot,"/data-raw/population/SLV/populatio
 #                   read.csv(paste0(mainDirroot,"/data-raw/wealth/population_mex_2018-10-01.csv"))
 #                  )                 
                  
-populationsp <- st_as_sf(population, coords = c("longitude", "latitude"), crs = 4326)
+populationsp <- sf::st_as_sf(population, coords = c("longitude", "latitude"), crs = 4326)
 
-#world <- st_as_sf(world.spdf)
+#world <- sf::st_as_sf(world.spdf)
 # Discretize the variable
 bv <- quantile(population$population_2020, seq(from = 0, to = 1, length.out = 9))
 # Draw the map
@@ -294,7 +294,7 @@ mapsf::mf_credits(txt = "Source: Facebook Data For Good",
 ```{r}
 
 # 
-# p <- ggplot(st_transform(populationsp, "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")) +
+# p <- ggplot(sf::st_transform(populationsp, "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")) +
 #       geom_sf(aes(fill = population_2020), 
 #               colour="#DADADA", 
 #               size=0.25) +
@@ -430,7 +430,7 @@ The  [Movement Range data sets ](https://data.humdata.org/dataset/movement-range
 
 ```{r getdatamovement, echo = FALSE, message = FALSE, warning = FALSE}
 
-# zip_file_path <- pull_dataset("movement-range-maps") %>%
+# zip_file_path <- rhdx::pull_dataset("movement-range-maps") %>%
 #   get_resource(2) %>%
 #   download_resource()
 # 
@@ -764,7 +764,7 @@ acled.data <- acled.api::acled.api(email.address = Sys.getenv("EMAIL_ADDRESS"), 
 
 
 
-acledsp <- st_as_sf(acled.data, coords = c("longitude", "latitude"), crs = 4326)  %>%
+acledsp <- sf::st_as_sf(acled.data, coords = c("longitude", "latitude"), crs = 4326)  %>%
  # find points within polygons
  st_join(., polyLevel2_sf, join = st_within) 
 
@@ -1081,7 +1081,7 @@ As described in the this [tutorial](https://dataforgood.facebook.com/dfg/docs/tu
 
 ```{r getdatawealth, echo = FALSE, message = FALSE, warning = FALSE}
 
-# zip_file_path <- pull_dataset("relative-wealth-index") %>%
+# zip_file_path <- rhdx::pull_dataset("relative-wealth-index") %>%
 #   get_resource(1) %>%
 #   download_resource()
 # 
@@ -1102,7 +1102,7 @@ wealth <- read.csv(file_path)
 #                   read.csv(paste0(mainDirroot,"/data-raw/wealth/MEX_relative_wealth_index.csv"))
 #                  )
 
-wealthsp <- st_as_sf(wealth, coords = c("longitude", "latitude"), crs = 4326)
+wealthsp <- sf::st_as_sf(wealth, coords = c("longitude", "latitude"), crs = 4326)
 
 ##plot(sf::st_geometry(wealthsp))
 polyLevel2_sf <- polyLevel2_sf %>%
@@ -1396,7 +1396,7 @@ x1 <- quantile(country_sci$sci, scale_from_ptile/100)
 # # Merge with shape files
 # dat_map <- 
 #     inner_join(dat, shapes_in, by=c("fr_loc")) %>% 
-#     st_as_sf
+#     sf::st_as_sf
 # 
 # # region_name_col  <- "name"
 # # fr_country_col  <- "fr_country"
@@ -1425,7 +1425,7 @@ x1 <- quantile(country_sci$sci, scale_from_ptile/100)
 # 
 # 
 # # Plot the data
-# p <- ggplot(st_transform(dat_map, "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")) +
+# p <- ggplot(sf::st_transform(dat_map, "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")) +
 #       geom_sf(aes(fill = sci_bkt), 
 #               colour="#DADADA", 
 #               size=0.25) +
@@ -1477,8 +1477,8 @@ country_sci <- rename(sci_dat, sci=scaled_sci)  %>%
 #names(gadm1)
 ## Map for SLV
 shapes_in <- gadm1 %>% 
-  st_transform(crs=4326)  %>% 
- # st_transform(crs("+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"))  %>% 
+  sf::st_transform(crs=4326)  %>% 
+ # sf::st_transform(crs("+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"))  %>% 
   filter(GID_0 %in% c("SLV","GTM", "HND", "MEX")) 
 
 shapes_in <- shapes_in[ , c("GID_1", "NAME_1", "geometry")]
@@ -1519,7 +1519,7 @@ x100 <- x1 * 100
 # # Merge with shape files
 # dat_map <- 
 #     inner_join(dat, shapes_in, by=c("fr_loc")) %>% 
-#     st_as_sf  %>% 
+#     sf::st_as_sf  %>% 
 #     mutate(sci_bkt = case_when(
 #         sci < x1 ~ str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
 #         sci < x2 ~ "1-2x",
@@ -1537,7 +1537,7 @@ x100 <- x1 * 100
 #     inner_join(dat, shapes_in, by=c("user_loc"="fr_loc")) %>% 
 #     filter(user_loc == curr_region_code) %>% 
 #     head(1)  %>% 
-#    st_as_sf() 
+#    sf::st_as_sf() 
 #     
 # curr_region_name <-  curr_region_outline$NAME_1 
 # ##plot(sf::st_geometry(curr_region_outline))
@@ -1598,8 +1598,8 @@ country_sci <- rename(sci_dat, sci=scaled_sci)  %>%
 #names(gadm1)
 ## Map for SLV
 shapes_in <- gadm1 %>% 
-  st_transform(crs=4326)  %>% 
- # st_transform(crs("+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"))  %>% 
+  sf::st_transform(crs=4326)  %>% 
+ # sf::st_transform(crs("+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"))  %>% 
   filter(GID_0 %in% c("SLV","GTM", "HND", "MEX")) 
 
 shapes_in <- shapes_in[ , c("GID_1", "NAME_1", "geometry")]
@@ -1644,7 +1644,7 @@ x100 <- x1 * 100
 # # Merge with shape files
 # dat_map <- 
 #     inner_join(dat, shapes_in, by=c("fr_loc")) %>% 
-#     st_as_sf  %>% 
+#     sf::st_as_sf  %>% 
 #     mutate(sci_bkt = case_when(
 #         sci < x1 ~ str_interp("< 1x (Country ${scale_from_ptile}th percentile)"),
 #         sci < x2 ~ "1-2x",
@@ -1662,7 +1662,7 @@ x100 <- x1 * 100
 #     inner_join(dat, shapes_in, by=c("user_loc"="fr_loc")) %>% 
 #     filter(user_loc == curr_region_code) %>% 
 #     head(1)  %>% 
-#    st_as_sf() 
+#    sf::st_as_sf() 
 #     
 # curr_region_name <-  curr_region_outline$NAME_1 
 # ##plot(sf::st_geometry(curr_region_outline))
