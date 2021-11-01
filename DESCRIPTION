@@ -1,0 +1,23 @@
+Package: AreaBasedApproach
+Type: Package
+Title: Reproducible analysis to compute severity index in relation to migration in Northern Triangle  
+Version: 0.1.0
+Author: Edouard Legoupil
+Maintainer: Edouard Legoupil <edouard.legoupil@gmail.com>
+Authors@R: c(
+  person("Edouard", "Legoupil", role = c("aut", "cre"), email = "legoupil@unhcr.org"),
+  person("Hisham", "Galal", role = c("aut", "ctb"), email = "galalh@unhcr.org"))
+Description: Reproducible analysis to compute severity index in relation to migration in Northern Triangle
+URL: https://unhcr-americas.github.io/Area_Based_Approach/docs
+BugReports: https://github.com/unhcr-americas/Area_Based_Approach
+Depends: R (>= 3.5.0)
+import: haven, stats, filter, na.omit, tidyverse, labelled, sjmisc, assertr, janitor, rlang, mice 
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: false
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
+Suggests: 
+    rmarkdown,
+    knitr
+VignetteBuilder: knitr

@@ -1,0 +1,321 @@
+---
+title: "Using Facebook Data for Area Based Approach in El Salvador"
+author: "Your name"
+date: " `r format(Sys.Date(),  '%d %B %Y')`"
+always_allow_html: yes
+output:
+  unhcRstyle::unhcr_templ_html:
+    toc: true
+---
+
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = FALSE, 
+                      message = FALSE, 
+                      warning = FALSE, 
+                      collapse = FALSE,
+                      comment = "#>",
+                      fig.align = "center")
+knitr::opts_chunk$set(fig.width = 12, fig.height = 9, fig.retina = 2, fig.align = "center", dev.args = list(pointsize = 11))
+set.seed(1)
+extrafont::loadfonts(quiet=TRUE)
+options(scipen = 999) # turn-off scientific notation like 1e+48
+library(unhcRstyle)
+library(magrittr)
+library(readr)
+library(sf)
+library(purrr)
+library(lubridate)
+library(dplyr)
+library(GADMTools)
+library(tidyverse)
+library(gghighlight)
+library(dplyr)
+library(zoo)
+library(raster)
+library(sf)
+library(leaflet)
+library(sp)
+library(glue)
+library(exactextractr)
+library(furrr)
+library(rmapshaper)
+library(magick)
+library(magrittr) 
+library(mapsf)
+library(potential) 
+library(sp)
+library(kableExtra)
+library(matrixStats)
+library(tidyverse)
+
+library(readxl)
+# remotes::install_gitlab("dickoa/rhxl") ## rhdx dependency
+# remotes::install_gitlab("dickoa/rhdx") ## github mirror also avalailable
+library(rhdx)
+
+library(gganimate)
+library(cowplot)
+library(transformr)
+
+mainDir <- getwd()
+## If you save your analysis under vignette folder...
+#mainDirroot <- substring(mainDir, 0 , nchar(mainDir) - 10)
+mainDirroot <- mainDir
+
+```
+
+
+
+```{r getmap, echo = FALSE, message = FALSE, warning = FALSE, cache =TRUE}
+
+## here we pull our geometry
+polyLevel0 <- st_read( paste0(mainDirroot,"/data-raw/admin/slv_admbnda_adm0_gadm_20210204.shp"), quiet = TRUE)
+polyLevel1 <- st_read( paste0(mainDirroot,"/data-raw/admin/slv_admbnda_adm1_gadm_20210204.shp"), quiet = TRUE)
+polyLevel2 <- st_read( paste0(mainDirroot,"/data-raw/admin/slv_admbnda_adm2_gadm_20210204.shp"), quiet = TRUE)
+
+# polyLevel0 <- raster::getData('GADM', country = 'SLV', level = 0)
+# ## Convert the spatial file to sf to increase speed and ease of plotting
+polyLevel0_sf <- st_as_sf(polyLevel0) %>%
+  ms_simplify()
+# 
+# ## Check what you get
+# ##plot(sf::st_geometry(polyLevel0_sf))
+# 
+# ## Fetch shapefiles 
+# 
+# polyLevel1 <- raster::getData('GADM', country = 'SLV', level = 1)
+# ## Convert the spatial file to sf to increase speed and ease of plotting
+polyLevel1_sf <- st_as_sf(polyLevel1) %>%
+  ms_simplify()
+# 
+# 
+
+#save(polyLevel2_sf,file= paste0(mainDirroot,"/data-raw/polyLevel2_sf.Rda"))
+
+load(paste0(mainDirroot,"/data-raw/polyLevel2_sf.Rda"))
+# polyLevel2 <- raster::getData('GADM', country = 'SLV', level = 2)
+# ## Convert the spatial file to sf to increase speed and ease of plotting
+# polyLevel2_sf <- st_as_sf(polyLevel2) %>%
+#   ms_simplify()
+# #   st_simplify(preserveTopology=TRUE, dTolerance = .0025)
+
+## Check what you get
+##plot(sf::st_geometry(polyLevel2_sf))
+
+ocean <- st_read( paste0(mainDirroot,"/data-raw/ocean/ne_50m_ocean.shp"), quiet = TRUE)
+
+
+```
+
+
+
+```{r}
+score <- readxl::read_excel( paste0(mainDirroot,"/inst/slv/CTT V2_Datos.xlsx"), sheet = "CCT (2)", skip = 1)
+
+score2 <- score %>%
+  mutate( ADM  = paste0(DEPARTAMENTO,"-",MUNICIPIO) ) %>%
+  dplyr::select(ADM , CTT)
+
+#names(score)
+#names(polyLevel2_sf)
+
+score3 <- polyLevel2_sf %>%
+  mutate( ADM  = paste0(ADM1_ES,"-",ADM2_ES) ) %>%
+  left_join(score2, by = "ADM") %>%
+  dplyr::select(ADM , ADM1_ES,ADM2_ES, CTT, total_pop)
+
+score3$quint2 <- Hmisc::cut2(score3$CTT, g = 6) 
+```
+
+
+```{r, message=FALSE, warning=FALSE, fig.height= 10, fig.width= 10}
+
+## Color scale - https://developer.r-project.org/Blog/public/2019/04/01/hcl-based-color-palettes-in-grdevices/
+
+mapsf::mf_init(score3)
+
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+
+mapsf::mf_prop_typo( 
+  x = score3, 
+  var = c("total_pop", "quint2"),
+  inches = .35, 
+  border = "tomato4",
+  alpha = .8,
+  val_max = 90000, 
+  symbol = "circle", 
+  col_na = "grey", 
+  pal = "Inferno",
+  lwd = 1,
+  leg_pos = c("bottomright", "bottomleft"),
+  leg_title = c("Population", "Severity Index"),
+  leg_title_cex = c(0.9, 0.9),
+  leg_val_cex = c(.7, .7),
+  #val_order = c("Prefecture", "Sub-prefecture", "Simple municipality"),
+  leg_no_data = "No dada",
+  leg_frame = c(TRUE, TRUE),
+  add = TRUE
+)
+
+# Set a layout
+mapsf::mf_title(txt = "Areas Characterisation - El Salvador", 
+                fg = "#FFFFFF")
+mapsf::mf_credits(txt = "Source: Multiple Indicators aggregated at level 2",
+                   bg = "#ffffff80") 
+
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, fig.height= 10, fig.width= 10}
+
+## Color scale - https://developer.r-project.org/Blog/public/2019/04/01/hcl-based-color-palettes-in-grdevices/
+
+mapsf::mf_init(score3)
+
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+
+mapsf::mf_typo( 
+  x = score3, 
+  var = c( "quint2"),
+  border = "tomato4",
+  alpha = .8,
+  col_na = "grey", 
+  pal = "Inferno",
+  lwd = 1,
+  leg_pos =  "bottomleft",
+  leg_title =  "Severity Index",
+  leg_title_cex = c(0.9),
+  leg_val_cex = c(.7),
+  #val_order = c("Prefecture", "Sub-prefecture", "Simple municipality"),
+  leg_no_data = "No dada",
+  leg_frame = c(TRUE),
+  add = TRUE
+)
+
+# Set a layout
+mapsf::mf_title(txt = "Areas Characterisation - El Salvador", 
+                fg = "#FFFFFF")
+mapsf::mf_credits(txt = "Source: Multiple Indicators aggregated at level 2",
+                   bg = "#ffffff80") 
+
+
+```
+
+
+### Severity Index on a map
+
+We can now visualize the thematic indicator on a map.
+
+An initial visualization will be to present both the severity and the population size affected by this severity.
+
+```{r, message=FALSE, warning=FALSE, fig.height= 10, fig.width= 10}
+
+## Color scale - https://developer.r-project.org/Blog/public/2019/04/01/hcl-based-color-palettes-in-grdevices/
+
+mapsf::mf_init(polyLevel2_sf) 
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+
+mapsf::mf_prop_typo( 
+  x = polyLevel2_sf, 
+  var = c("total_pop", "quint2"),
+  inches = .35, 
+  border = "tomato4",
+  alpha = .8,
+  val_max = 90000, 
+  symbol = "circle", 
+  col_na = "grey", 
+  pal = "Inferno",
+  lwd = 1,
+  leg_pos = c("bottomright", "bottomleft"),
+  leg_title = c("Population", "Severity Index"),
+  leg_title_cex = c(0.9, 0.9),
+  leg_val_cex = c(.7, .7),
+  #val_order = c("Prefecture", "Sub-prefecture", "Simple municipality"),
+  leg_no_data = "No dada",
+  leg_frame = c(TRUE, TRUE),
+  add = TRUE
+)
+
+# Set a layout
+mapsf::mf_title(txt = "Areas Characterisation - El Salvador", 
+                fg = "#FFFFFF")
+mapsf::mf_credits(txt = "Source: Multiple Indicators aggregated at level 2",
+                   bg = "#ffffff80") 
+
+
+```
+
+
+
+```{r, message=FALSE, warning=FALSE, fig.height= 10, fig.width= 10}
+
+## Color scale - https://developer.r-project.org/Blog/public/2019/04/01/hcl-based-color-palettes-in-grdevices/
+
+mapsf::mf_init(polyLevel2_sf)
+
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+
+mapsf::mf_typo( 
+  x = polyLevel2_sf, 
+  var = c( "quint2"),
+  border = "tomato4",
+  alpha = .8,
+  col_na = "grey", 
+  pal = "Inferno",
+  lwd = 1,
+  leg_pos =  "bottomleft",
+  leg_title =  "Severity Index",
+  leg_title_cex = c(0.9),
+  leg_val_cex = c(.7),
+  #val_order = c("Prefecture", "Sub-prefecture", "Simple municipality"),
+  leg_no_data = "No dada",
+  leg_frame = c(TRUE),
+  add = TRUE
+)
+
+# Set a layout
+mapsf::mf_title(txt = "Areas Characterisation - El Salvador", 
+                fg = "#FFFFFF")
+mapsf::mf_credits(txt = "Source: Multiple Indicators aggregated at level 2",
+                   bg = "#ffffff80") 
+
+
+```
+
+
+
+ 

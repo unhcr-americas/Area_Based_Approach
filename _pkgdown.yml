@@ -1,0 +1,25 @@
+title: AreaBasedApproach
+url: https://unhcr-americas.github.io/Area_Based_Approach/docs/
+template:
+  params:
+    bootswatch: yeti
+
+navbar:
+  title: AreaBasedApproach
+  left:
+  - text: "Articles"
+    menu:
+     - text: Methodology
+       href: articles/Methodology.html
+     - text: Calculation for El Salvador
+       href: articles/Area_Based_Approach_SLV.html 
+     - text: Calculation for Guatemala
+       href: articles/Area_Based_Approach_GTM.html 
+  - text: Reference
+    href: reference/index.html
+
+reference:
+  - title: Data Preparation function
+    contents:
+      - get_data
+      - get_isochrone
