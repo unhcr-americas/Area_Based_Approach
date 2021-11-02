@@ -1,0 +1,12 @@
+pandoc: 2.11.4
+pkgdown: 1.6.1
+pkgdown_sha: ~
+articles:
+  Area_Based_Approach_GUAT: Area_Based_Approach_GUAT.html
+  Area_Based_Approach_SLV: Area_Based_Approach_SLV.html
+  Methodology: Methodology.html
+last_built: 2021-11-01T23:33Z
+urls:
+  reference: https://unhcr-americas.github.io/Area_Based_Approach/docs//reference
+  article: https://unhcr-americas.github.io/Area_Based_Approach/docs//articles
+

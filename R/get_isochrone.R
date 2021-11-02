@@ -14,7 +14,7 @@ data_raw_dir <- function() {
   if(!dir.exists("data-raw")) dir.create("data-raw")
 }
 
-#' get_data
+#' get_isochrone
 #' 
 #' Get all country specific dataset 
 #'
@@ -27,7 +27,7 @@ data_raw_dir <- function() {
 #' }
 #' @export
 
-get_data <- function( ){
+get_isochrone <- function( ){
   
 
   #require(tidyverse)

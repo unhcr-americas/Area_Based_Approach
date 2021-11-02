@@ -28,7 +28,6 @@ options(scipen = 999) # turn-off scientific notation like 1e+48
 library(unhcRstyle)
 library(magrittr)
 library(readr)
-#library(sf)
 library(purrr)
 library(lubridate)
 library(dplyr)
@@ -77,7 +76,7 @@ polyLevel0 <- sf::st_read( paste0(mainDirroot,"/data-raw/admin/GTM/gtm_admbnda_a
 polyLevel1 <- sf::st_read( paste0(mainDirroot,"/data-raw/admin/GTM/gtm_admbnda_adm1_ocha_conred_20190207.shp"), quiet = TRUE)
 polyLevel2 <- sf::st_read( paste0(mainDirroot,"/data-raw/admin/GTM/gtm_admbnda_adm2_ocha_conred_20190207.shp"), quiet = TRUE)
 
-# polyLevel0 <- raster::getData('GADM', country = 'SLV', level = 0)
+# polyLevel0 <- raster::getData('GADM', country = 'GTM', level = 0)
 # ## Convert the spatial file to sf to increase speed and ease of plotting
 polyLevel0_sf <- sf::st_as_sf(polyLevel0) %>%
   rmapshaper::ms_simplify()
@@ -87,13 +86,13 @@ polyLevel0_sf <- sf::st_as_sf(polyLevel0) %>%
 # 
 # ## Fetch shapefiles 
 # 
-# polyLevel1 <- raster::getData('GADM', country = 'SLV', level = 1)
+# polyLevel1 <- raster::getData('GADM', country = 'GTM', level = 1)
 # ## Convert the spatial file to sf to increase speed and ease of plotting
 polyLevel1_sf <- sf::st_as_sf(polyLevel1) %>%
   rmapshaper::ms_simplify()
 # 
 # 
-# polyLevel2 <- raster::getData('GADM', country = 'SLV', level = 2)
+# polyLevel2 <- raster::getData('GADM', country = 'GTM', level = 2)
 # ## Convert the spatial file to sf to increase speed and ease of plotting
 polyLevel2_sf <- sf::st_as_sf(polyLevel2) %>%
   rmapshaper::ms_simplify()
@@ -248,7 +247,7 @@ populationsp <- sf::st_as_sf(population, coords = c("longitude", "latitude"), cr
 bv <- quantile(population$population_2020, seq(from = 0, to = 1, length.out = 9))
 # Draw the map
 # Set a color palette
-pal <- mf_get_pal(n = 9, palette = "RdPu", rev = TRUE)
+pal <- mapsf::mf_get_pal(n = 9, palette = "RdPu", rev = TRUE)
 ```
 
 
@@ -265,22 +264,22 @@ mapsf::mf_map(polyLevel2_sf,
               border = "#93A3AB", 
               col = "#FFFFFF")
  
-# Map the regional GDP per capita
-mapsf::mf_map(x = populationsp, 
-              var = "population_2020", 
-              type = "choro",
-       leg_pos = "topright",
-       breaks = bv, 
-       pal = pal, 
-       border = NA, 
-       leg_title = "Population Density",
-     #  leg_val_rnd = -2, 
-       add = TRUE)
-# Set a layout
-mapsf::mf_title(txt = "Population Density in El Salvador", 
-                fg = "#FFFFFF")
-mapsf::mf_credits(txt = "Source: Facebook Data For Good", 
-           bg = "#ffffff80")
+# # Map the regional GDP per capita
+# mapsf::mf_map(x = populationsp, 
+#               var = "gtm_general_2020", 
+#               type = "choro",
+#        leg_pos = "topright",
+#        breaks = bv, 
+#        pal = pal, 
+#        border = NA, 
+#        leg_title = "Population Density",
+#      #  leg_val_rnd = -2, 
+#        add = TRUE)
+# # Set a layout
+# mapsf::mf_title(txt = "Population Density in Guatemala", 
+#                 fg = "#FFFFFF")
+# mapsf::mf_credits(txt = "Source: Facebook Data For Good", 
+#            bg = "#ffffff80")
 
 
 ```
@@ -294,7 +293,7 @@ mapsf::mf_credits(txt = "Source: Facebook Data For Good",
 #               size=0.25) +
 #       #scale_fill_brewer(palette = "RdPu", na.value="#F5F5F5", drop=FALSE) +
 #   
-#       labs(title = "Population Density in El Salvador" ,
+#       labs(title = "Population Density in Guatemala" ,
 #            subtitle = "As of August 2018",
 #            x = "",
 #            y = "",
@@ -396,7 +395,7 @@ mapsf::mf_credits(txt = "Source: Facebook Data For Good",
 #               #leg_val_rnd = -2, 
 #               add = TRUE)
 # # Set a layout
-# mapsf::mf_title(txt = "Population Density in El Salvador", 
+# mapsf::mf_title(txt = "Population Density in Guatemala", 
 #                fg = "#FFFFFF")
 # mapsf::mf_credits(txt = "Source: Facebook Data For Good", 
 #                    bg = "#ffffff80")
@@ -446,7 +445,7 @@ movement_range <- read_delim(file_path, delim = "\t") %>%
          ds <= as.Date("2021-10-02")) 
 
 
-md <- subset(movement_range,country %in% c( "SLV" #, "HND", "MEX","BLZ", "GTM"
+md <- subset(movement_range,country %in% c( "GTM" #, "HND", "MEX","BLZ", "GTM"
                                             ))
 
 
@@ -503,7 +502,7 @@ min_stay_put = min(md$all_day_ratio_single_tile_users)
 
 ```{r plot2, echo = FALSE, message = FALSE, warning = FALSE}
 ## I strongly recommend to subset unless you want the entire globe. This will be very large and slow if you do not.
-md <- subset(movement_range,country %in% c( "SLV" #, "HND", "MEX","BLZ", "GTM"
+md <- subset(movement_range,country %in% c( "GTM" #, "HND", "MEX","BLZ", "GTM"
                                             ))
 
 
@@ -707,7 +706,7 @@ ggplot(data = md) +
 #   #         legend.position = c(0.1, 0.1)) +
 #   labs(fill = 'Facebook Data for Good \n% Staying Put',
 #          title = title)
-#   ggsave(glue({'anim/SLV-{target_ds}-staying put.png'}), g, scale = 1.0,
+#   ggsave(glue({'anim/GTM-{target_ds}-staying put.png'}), g, scale = 1.0,
 #          width = unit(4, 'cm'),
 #          height = unit(4, 'cm'))
 #   g
@@ -753,14 +752,14 @@ acled.data <- acled.api::acled.api(email.address = Sys.getenv("EMAIL_ADDRESS"), 
                                    access.key = Sys.getenv("ACCESS_KEY"),
                                    start.date = "2017-01-01",
                         end.date = lubridate::today(),
-                        country = c( "El Salvador"),
+                        country = c( "Guatemala"),
                         all.variables = TRUE) 
 
 
 
 acledsp <- sf::st_as_sf(acled.data, coords = c("longitude", "latitude"), crs = 4326)  %>%
  # find points within polygons
- st_join(., polyLevel2_sf, join = st_within) 
+ sf::st_join(., polyLevel2_sf, join = sf::st_within) 
 
 
 # levels(as.factor(acled.data$event_type))
@@ -770,11 +769,11 @@ event <- as.data.frame(unique(acled.data[ ,c("event_type","sub_event_type")]))
 #View(acled.data[ acled.data$sub_event_type == "Sexual violence", ])
 
 polyLevel2_sf <- polyLevel2_sf %>%
-  left_join(
+  dplyr::left_join(
 ## Compile some stat by admin 2
 #acled.level2 <-
   acledsp %>%
-  st_drop_geometry() %>%
+  sf::st_drop_geometry() %>%
   group_by(ADM2_PCODE) %>%
  # summarise()%>% 
   #count( sub_event_type) %>% 
@@ -785,11 +784,11 @@ polyLevel2_sf <- polyLevel2_sf %>%
   janitor::clean_names() %>%
   mutate(ADM2_PCODE = adm2_pcode  ) ,
  by = "ADM2_PCODE")%>%
-  left_join(
+  dplyr::left_join(
 ## Compile some stat by admin 2
 #acled.level2 <-
   acledsp %>%
-  st_drop_geometry() %>%
+  sf::st_drop_geometry() %>%
   group_by(ADM2_PCODE) %>%
  # summarise()%>% 
    dplyr::count( sub_event_type) %>% 
@@ -826,7 +825,7 @@ mapsf::mf_map(
 )
 
 # Set a layout
-mapsf::mf_title(txt = "Battles in El Salvador", 
+mapsf::mf_title(txt = "Battles in Guatemala", 
                 fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
                    bg = "#ffffff80")
@@ -856,7 +855,7 @@ mapsf::mf_map(
 )
  
 # Set a layout
-mapsf::mf_title(txt = "Explosions & Remote Violence in El Salvador", 
+mapsf::mf_title(txt = "Explosions & Remote Violence in Guatemala", 
                 fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
                    bg = "#ffffff80")
@@ -886,7 +885,7 @@ mapsf::mf_map(
 )
  
 # Set a layout
-mapsf::mf_title(txt = "Protests in El Salvador", 
+mapsf::mf_title(txt = "Protests in Guatemala", 
                 fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
                    bg = "#ffffff80")
@@ -917,7 +916,7 @@ mapsf::mf_map(
 )
  
 # Set a layout
-mapsf::mf_title(txt = "Strategic developmentsin El Salvador", 
+mapsf::mf_title(txt = "Strategic developmentsin Guatemala", 
                 fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
                    bg = "#ffffff80")
@@ -948,7 +947,7 @@ mapsf::mf_map(
 )
  
 # Set a layout
-mapsf::mf_title(txt = "Violence against Civilians in El Salvador", 
+mapsf::mf_title(txt = "Violence against Civilians in Guatemala", 
                 fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
                    bg = "#ffffff80")
@@ -979,7 +978,7 @@ mapsf::mf_map(
 )
  
 # Set a layout
-mapsf::mf_title(txt = "Riots in El Salvador", 
+mapsf::mf_title(txt = "Riots in Guatemala", 
                 fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018",
                    bg = "#ffffff80")
@@ -1008,7 +1007,7 @@ mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018"
 # 
 # 
 # # Set a color palette
-# pal <- mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
+# pal <- mapsf::mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
 # 
 # mapsf::mf_init(acledcontour)
 # mapsf::mf_map(ocean, 
@@ -1037,7 +1036,7 @@ mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018"
 #               add = TRUE)
 
 # # Set a layout
-# mapsf::mf_title(txt = "Fatalities in El Salvador", 
+# mapsf::mf_title(txt = "Fatalities in Guatemala", 
 #                fg = "#FFFFFF")
 # mapsf::mf_credits(txt = "Source: ACLED", 
 #                    bg = "#ffffff80")
@@ -1080,31 +1079,21 @@ As described in the this [tutorial](https://dataforgood.facebook.com/dfg/docs/tu
 #   download_resource()
 # 
 # files <- unzip(zip_file_path, list = TRUE)
-# files <- grep("SLV_relative_wealth_index", files$Name, value = TRUE)
+# files <- grep("gtm_relative_wealth_index", files$Name, value = TRUE)
 # 
 # file_path <- unzip(zip_file_path, files = files[1])
 file_path <-  paste0(mainDirroot,"/data-raw/wealth/GTM/gtm_relative_wealth_index.csv") 
 wealth <- read.csv(file_path)
 
-
-
-# wealth <-   read.csv(paste0(mainDirroot,"/data-raw/wealth/SLV_relative_wealth_index.csv")) 
-
-# wealth <-  rbind(read.csv(paste0(mainDirroot,"/data-raw/wealth/SLV_relative_wealth_index.csv")) ,
-#                   read.csv(paste0(mainDirroot,"/data-raw/wealth/HND_relative_wealth_index.csv")),
-#                   read.csv(paste0(mainDirroot,"/data-raw/wealth/GTM_relative_wealth_index.csv")),
-#                   read.csv(paste0(mainDirroot,"/data-raw/wealth/MEX_relative_wealth_index.csv"))
-#                  )
-
 wealthsp <- sf::st_as_sf(wealth, coords = c("longitude", "latitude"), crs = 4326)
 
 ##plot(sf::st_geometry(wealthsp))
 polyLevel2_sf <- polyLevel2_sf %>%
-  left_join(
+  dplyr::left_join(
 # find points within polygons
 wealth_in_level2 <-
-       st_join(wealthsp, polyLevel2_sf, join = st_within) %>%
-       st_drop_geometry() %>%
+       sf::st_join(wealthsp, polyLevel2_sf, join = sf::st_within) %>%
+       sf::st_drop_geometry() %>%
                     group_by(ADM2_PCODE) %>%
                     summarise(rwi_avg =  mean(rwi ),
                               rwi_sd =  sd(rwi ),
@@ -1163,7 +1152,7 @@ wealth_in_level2 <-
 bv <- quantile(wealth$rwi, seq(from = 0, to = 1, length.out = 5))
 # Draw the map
 # Set a color palette
-pal <- mf_get_pal(n = 5, 
+pal <- mapsf::mf_get_pal(n = 5, 
                   #palette = "Burg", 
                   pal = c("Reds 2", "Greens"),
                 rev = TRUE)
@@ -1193,7 +1182,7 @@ mapsf::mf_map(x = wealthsp,
        add = TRUE)
 
 # Set a layout
-mapsf::mf_title(txt = "Relative Wealth Index in El Salvador", 
+mapsf::mf_title(txt = "Relative Wealth Index in Guatemala", 
                 fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: Facebook Data For Good", 
            bg = "#ffffff80")
@@ -1202,7 +1191,7 @@ mapsf::mf_credits(txt = "Source: Facebook Data For Good",
 ```
 
 
-```{r echo = FALSE, message = FALSE, warning = FALSE}
+```{r echo = FALSE, message = FALSE, warning = FALSE, cache = TRUE}
 # Compute Stewart potentials
 wealthstewart <- SpatialPosition::stewart(knownpts = wealthsp, 
                      varname = "rwi",
@@ -1224,7 +1213,7 @@ bks <- sort(unique(c(wealthcontour$min, wealthcontour$max)))
 
 
 # Set a color palette
-pal <- mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
+pal <- mapsf::mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
 ```
 
 ```{r echo = FALSE, message = FALSE, warning = FALSE}  
@@ -1251,7 +1240,7 @@ mapsf::mf_map(x = wealthcontour,
               #leg_val_rnd = -2, 
               add = TRUE) 
 # Set a layout
-mapsf::mf_title(txt = "Relative Wealth Index in El Salvador", 
+mapsf::mf_title(txt = "Relative Wealth Index in Guatemala", 
                 fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: Facebook Data For Good", 
                    bg = "#ffffff80")
@@ -1312,21 +1301,21 @@ sci_dat <- read_tsv(connectedness)
 # nlevels(as.factor(sci_dat$fr_loc))
 
 # country_sci <- rename(sci_dat, sci=scaled_sci)  %>% 
-#   filter(str_detect(user_loc, "SLV")) %>% 
+#   filter(str_detect(user_loc, "GTM")) %>% 
 #   group_by(user_loc ) %>% 
 #   summarise(total.count=n(),  
 #                count=sum(is.na(sci)),
 #                maxsci =max(sci, na.rm=TRUE))  
 
 country_sci <-  sci_dat   %>% 
-  filter(str_detect(user_loc, "SLV")) %>% 
+  filter(str_detect(user_loc, "GTM")) %>% 
   filter(scaled_sci > 1000 ) %>% 
   group_by(user_loc ) %>% 
   summarise( world1000 =n(),  
                maxsciworld1000 =max(scaled_sci, na.rm=TRUE)) %>% 
   
-    left_join( sci_dat   %>% 
-    filter(str_detect(user_loc, "SLV")) %>% 
+    dplyr::left_join( sci_dat   %>% 
+    filter(str_detect(user_loc, "GTM")) %>% 
     filter(str_detect(fr_loc, "USA")) %>% 
     filter(scaled_sci > 1000 ) %>% 
     group_by(user_loc ) %>% 
@@ -1336,12 +1325,12 @@ country_sci <-  sci_dat   %>%
    ## Now cleaning PCdode to do the merge
 #country_sci2 <-  country_sci  %>% 
               rename(  ADM1_PCODE = user_loc) %>% 
-              mutate( ADM1_PCODE = str_replace_all(ADM1_PCODE, "SLV", "SV"))%>% 
-              mutate( ADM1_PCODE = ifelse (nchar( ADM1_PCODE) <4, str_replace_all(ADM1_PCODE, "SV", "SV0"), ADM1_PCODE )  )
+              mutate( ADM1_PCODE = str_replace_all(ADM1_PCODE, "GTM", "GT"))%>% 
+              mutate( ADM1_PCODE = ifelse (nchar( ADM1_PCODE) <4, str_replace_all(ADM1_PCODE, "GT", "SV0"), ADM1_PCODE )  )
                               
 
 polyLevel2_sf <- polyLevel2_sf %>% 
-  left_join(country_sci ,  by = "ADM1_PCODE")
+  dplyr::left_join(country_sci ,  by = "ADM1_PCODE")
   
 
 ```
@@ -1351,13 +1340,13 @@ polyLevel2_sf <- polyLevel2_sf %>%
 ```{r echo = FALSE, message = FALSE, warning = FALSE}
 
 country_sci <- rename(sci_dat, sci=scaled_sci)  %>% 
-  filter(str_detect(user_loc, "SLV")) %>% 
-  filter(str_detect(fr_loc, "SLV")) %>% 
+  filter(str_detect(user_loc, "GTM")) %>% 
+  filter(str_detect(fr_loc, "GTM")) %>% 
               rename(  ADM1_PCODE = user_loc) %>% 
-              mutate( ADM1_PCODE = str_replace_all(ADM1_PCODE, "SLV", "SV"))%>% 
-              mutate( ADM1_PCODE = ifelse (nchar( ADM1_PCODE) <4, str_replace_all(ADM1_PCODE, "SV", "SV0"), ADM1_PCODE )  )
+              mutate( ADM1_PCODE = str_replace_all(ADM1_PCODE, "GTM", "GT"))%>% 
+              mutate( ADM1_PCODE = ifelse (nchar( ADM1_PCODE) <4, str_replace_all(ADM1_PCODE, "SV", "GT0"), ADM1_PCODE )  )
 
-## Map for SLV
+## Map for GTM
 shapes_in <- polyLevel1_sf 
 # levels(as.factor(sci_dat$user_loc))
 #levels(as.factor(shapes_in$GID_1 ))
@@ -1384,7 +1373,7 @@ x1 <- quantile(country_sci$sci, scale_from_ptile/100)
   
 # for ( curr_region_code in unique(country_sci$user_loc))  {
 #   
-# ## curr_region_code <- "SLV1" 
+# ## curr_region_code <- "GTM1" 
 # dat <- filter(country_sci, user_loc == curr_region_code)
 #     
 # # Merge with shape files
@@ -1432,7 +1421,7 @@ x1 <- quantile(country_sci$sci, scale_from_ptile/100)
 #       scale_fill_brewer(palette = "GnBu", na.value="#F5F5F5", drop=FALSE) +
 #   
 #       labs(title = paste0("Internal Social Connectedness Index for department: ",curr_region_name) ,
-#            subtitle = "El Salvador, as of August 2020",
+#            subtitle = "Guatemala, as of August 2020",
 #            x = "",
 #            y = "",
 #            fill = "SCI", 
@@ -1464,16 +1453,16 @@ x1 <- quantile(country_sci$sci, scale_from_ptile/100)
 ```{r echo = FALSE, message = FALSE, warning = FALSE}
 
 country_sci <- rename(sci_dat, sci=scaled_sci)  %>% 
-  filter(str_detect(user_loc, "SLV")) %>% 
+  filter(str_detect(user_loc, "GTM")) %>% 
   filter(str_detect(fr_loc, c("SLV","GTM", "HND")))
 
 
 #names(gadm1)
-## Map for SLV
+## Map for GTM
 shapes_in <- gadm1 %>% 
   sf::st_transform(crs=4326)  %>% 
  # sf::st_transform(crs("+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"))  %>% 
-  filter(GID_0 %in% c("SLV","GTM", "HND", "MEX")) 
+  filter(GID_0 %in% c("GTM","GTM", "HND", "MEX")) 
 
 shapes_in <- shapes_in[ , c("GID_1", "NAME_1", "geometry")]
 
@@ -1507,7 +1496,7 @@ x100 <- x1 * 100
   
 # for ( curr_region_code in unique(country_sci$user_loc))  {
 #   
-# ## curr_region_code <- "SLV1" 
+# ## curr_region_code <- "GTM1" 
 # dat <- filter(country_sci, user_loc == curr_region_code)
 #     
 # # Merge with shape files
@@ -1554,7 +1543,7 @@ x100 <- x1 * 100
 #       scale_fill_brewer(palette = "GnBu", na.value="#F5F5F5", drop=FALSE) +
 #   
 #       labs(title = paste0("International Social Connectedness Index for department: ",curr_region_name) ,
-#            subtitle = "El Salvador to Honduras, Guatemala & Mexico, as of August 2020",
+#            subtitle = "Guatemala to Honduras, Guatemala & Mexico, as of August 2020",
 #            x = "",
 #            y = "",
 #            fill = "SCI", 
@@ -1585,12 +1574,12 @@ x100 <- x1 * 100
 ```{r echo = FALSE, message = FALSE, warning = FALSE}
 
 country_sci <- rename(sci_dat, sci=scaled_sci)  %>% 
-  filter(str_detect(user_loc, "SLV")) %>% 
+  filter(str_detect(user_loc, "GTM")) %>% 
   filter(str_detect(fr_loc, c("SLV","GTM", "HND", "MEX", "USA")))
 
 
 #names(gadm1)
-## Map for SLV
+## Map for GTM
 shapes_in <- gadm1 %>% 
   sf::st_transform(crs=4326)  %>% 
  # sf::st_transform(crs("+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"))  %>% 
@@ -1632,7 +1621,7 @@ x100 <- x1 * 100
   
 # for ( curr_region_code in unique(country_sci$user_loc))  {
 #   
-# ## curr_region_code <- "SLV1" 
+# ## curr_region_code <- "GTM1" 
 # dat <- filter(country_sci, user_loc == curr_region_code)
 #     
 # # Merge with shape files
@@ -1679,7 +1668,7 @@ x100 <- x1 * 100
 #       scale_fill_brewer(palette = "GnBu", na.value="#F5F5F5", drop=FALSE) +
 #   
 #       labs(title = paste0("Interntional Social Connectedness Index for department: ",curr_region_name) ,
-#            subtitle = "El Salvador to USA, Honduras, Guatemala & Mexico, as of August 2020",
+#            subtitle = "Guatemala to USA, Honduras, Guatemala & Mexico, as of August 2020",
 #            x = "",
 #            y = "",
 #            fill = "SCI", 
@@ -1726,22 +1715,22 @@ x100 <- x1 * 100
 
 ## Agricultural drought frequency Index 
 
-[FAO-ASI](http://www.fao.org/giews/earthobservation/country/index.jsp?code=SLV&lang=en))
+[FAO-ASI](http://www.fao.org/giews/earthobservation/country/index.jsp?code=GTM&lang=en))
 
 Historic Agricultural Drought Frequency Maps depict the frequency of severe drought in areas where 30 percent/50 percent of the cropland has been affected. The historical frequency of severe droughts (as defined by ASI) is based on the entire ASI times series (1984-2020).
 
 
 ```{r}
 
-# gdal_translate -of Gtiff  -outsize 5000 5000 "WMS:https://io.apps.fao.org/geoserver/wms/ASIS/HDF/v2?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=HDF&SRS=EPSG:4326&BBOX=-90.3159,12.8091,-87.4539,14.6022" asi2_slv.tiff
+# gdal_translate -of Gtiff  -outsize 5000 5000 "WMS:https://io.apps.fao.org/geoserver/wms/ASIS/HDF/v2?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=HDF&SRS=EPSG:4326&BBOX=-90.3159,12.8091,-87.4539,14.6022" asi2_GTM.tiff
 
 
 ## save locallly a geotiff from the WMS server
-# system("gdal_translate -of Gtiff  -outsize 5000 5000 \"WMS:https://io.apps.fao.org/geoserver/wms/ASIS/HDF/v2?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=HDF&SRS=EPSG:4326&BBOX=-90.3159,12.8091,-87.4539,14.6022\" /data-raw/fao/asi2_slv.tiff")  
+# system("gdal_translate -of Gtiff  -outsize 5000 5000 \"WMS:https://io.apps.fao.org/geoserver/wms/ASIS/HDF/v2?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=HDF&SRS=EPSG:4326&BBOX=-90.3159,12.8091,-87.4539,14.6022\" /data-raw/fao/asi2_GTM.tiff")  
 
 # load raster in an R object called 'DEM'
-ASIpath <- paste0(mainDirroot,"/data-raw/fao/asi2_slv.tiff")
-ASI <- raster(ASIpath) 
+ASIpath <- paste0(mainDirroot,"/data-raw/fao/asi2_GTM.tiff")
+#ASI <- raster(ASIpath) 
 # 
 # GDALinfo(ASIpath)
 # 
@@ -1803,7 +1792,8 @@ layerhist <- "HDF"
 # this example from the tutorial works
 leaflet() %>% 
   addTiles() %>% 
-  setView(lat = 13.7167, lng = -88.8602, zoom = 9) %>% 
+  # 8/15.845/-90.580
+  setView(lat = 15.845, lng = -90.580, zoom = 8) %>% 
   addWMSTiles(
     wmshist,
     layers = layerhist,
@@ -1963,7 +1953,7 @@ subindicator <- data.frame(
 
 
 indic <- polyLevel2_sf %>%
-       st_drop_geometry() %>%
+       sf::st_drop_geometry() %>%
        as.data.frame()  %>%
    #mutate( row.names() = ADM2_PCODE) %>%
   
@@ -1977,7 +1967,7 @@ indic <- polyLevel2_sf %>%
    arrests ,   attack,   change_to_group_activity,          
    grenade  , peaceful_protest ,   mob_violence ,                    
    violent_demonstration , protest_with_intervention ,  other, 
-   remote_explosive_landmine_ied , sexual_violence ,
+   remote_explosive_landmine_ied , #sexual_violence ,
   looting_property_destruction , disrupted_weapons_use ,  
   excessive_force_against_protesters,
   
@@ -2494,34 +2484,34 @@ this.indic.matrix.norm4.melt <- reshape::melt(as.matrix(this.indic.matrix.norm4)
 
 
 #Make plot
-ggplot(this.indic.matrix.norm4.melt, aes(x = X2,
-                                                 y = value,
-                                                 color = X1,
-                                                 group = X1)) +
-  geom_line(size = 2) +
-  # scale_colour_manual(values = c("#8dd3c7","#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C",
-  #                                "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00", "#CAB2D6",
-  #                                "#6A3D9A", "#fb8072", "#B15928", "#fdb462","#ccebc5",
-  #                                "#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
-  #                                "#0072B2", "#D55E00", "#CC79A7")) + ## as many color as locations.. 23
-  ggrepel::geom_text_repel(
-    data = this.indic.matrix.norm4.melt[ this.indic.matrix.norm4.melt$Var2 == "Wroclaw", ],
-    aes(label = X1),
-    arrow = arrow(length = unit(0.03, "npc"), type = "closed", ends = "first"),
-    direction =	"y",
-    size = 4,
-    nudge_x = 45 ) +
-  labs(title = paste0("Rank for Composite Indicator on ",  this.dimension ),
-       subtitle = "Based on various weighting approach") +
-  theme( plot.title = element_text(size = 13),
-         plot.subtitle = element_text(size = 11),
-         plot.caption = element_text(size = 7, hjust = 1),
-         axis.text = element_text(size = 10),
-         strip.text.x = element_text(size = 11),
-         panel.grid.major.x = element_line(color = "#cbcbcb"),
-         panel.grid.major.y = element_blank(),
-         axis.text.x = element_text(angle = 45, hjust = 1),
-         legend.position = "none")
+# ggplot(this.indic.matrix.norm4.melt, aes(x = X2,
+#                                                  y = value,
+#                                                  color = X1,
+#                                                  group = X1)) +
+#   geom_line(size = 2) +
+#   # scale_colour_manual(values = c("#8dd3c7","#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C",
+#   #                                "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00", "#CAB2D6",
+#   #                                "#6A3D9A", "#fb8072", "#B15928", "#fdb462","#ccebc5",
+#   #                                "#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+#   #                                "#0072B2", "#D55E00", "#CC79A7")) + ## as many color as locations.. 23
+#   ggrepel::geom_text_repel(
+#     data = this.indic.matrix.norm4.melt[ this.indic.matrix.norm4.melt$Var2 == "Wroclaw", ],
+#     aes(label = X1),
+#     arrow = arrow(length = unit(0.03, "npc"), type = "closed", ends = "first"),
+#     direction =	"y",
+#     size = 4,
+#     nudge_x = 45 ) +
+#   labs(title = paste0("Rank for Composite Indicator on ",  this.dimension ),
+#        subtitle = "Based on various weighting approach") +
+#   theme( plot.title = element_text(size = 13),
+#          plot.subtitle = element_text(size = 11),
+#          plot.caption = element_text(size = 7, hjust = 1),
+#          axis.text = element_text(size = 10),
+#          strip.text.x = element_text(size = 11),
+#          panel.grid.major.x = element_line(color = "#cbcbcb"),
+#          panel.grid.major.y = element_blank(),
+#          axis.text.x = element_text(angle = 45, hjust = 1),
+#          legend.position = "none")
 
 
 
@@ -2657,7 +2647,7 @@ mapsf::mf_prop_typo(
 )
 
 # Set a layout
-mapsf::mf_title(txt = "Areas Characterisation - El Salvador", 
+mapsf::mf_title(txt = "Areas Characterisation - Guatemala", 
                 fg = "#FFFFFF")
 mapsf::mf_credits(txt = "Source: Multiple Indicators aggregated at level 2",
                    bg = "#ffffff80") 
@@ -2667,4 +2657,46 @@ mapsf::mf_credits(txt = "Source: Multiple Indicators aggregated at level 2",
 
 
  
+```{r, message=FALSE, warning=FALSE, fig.height= 10, fig.width= 10}
+
+## Color scale - https://developer.r-project.org/Blog/public/2019/04/01/hcl-based-color-palettes-in-grdevices/
+
+mapsf::mf_init(polyLevel2_sf)
+
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+
+mapsf::mf_typo( 
+  x = polyLevel2_sf, 
+  var = c( "quint2"),
+  border = "tomato4",
+  alpha = .8,
+  col_na = "grey", 
+  pal = "Inferno",
+  lwd = 1,
+  leg_pos =  "bottomleft",
+  leg_title =  "Severity Index",
+  leg_title_cex = c(0.9),
+  leg_val_cex = c(.7),
+  #val_order = c("Prefecture", "Sub-prefecture", "Simple municipality"),
+  leg_no_data = "No dada",
+  leg_frame = c(TRUE),
+  add = TRUE
+)
+
+# Set a layout
+mapsf::mf_title(txt = "Areas Characterisation - El Salvador", 
+                fg = "#FFFFFF")
+mapsf::mf_credits(txt = "Source: Multiple Indicators aggregated at level 2",
+                   bg = "#ffffff80") 
+
+
+```
  

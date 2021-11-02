@@ -28,17 +28,16 @@ options(scipen = 999) # turn-off scientific notation like 1e+48
 library(unhcRstyle)
 library(magrittr)
 library(readr)
-library(sf)
 library(purrr)
 library(lubridate)
 library(dplyr)
-library(GADMTools)
+#library(GADMTools)
 library(tidyverse)
 library(gghighlight)
 library(dplyr)
 library(zoo)
 library(raster)
-library(sf)
+#library(sf)
 library(leaflet)
 library(sp)
 library(glue)
@@ -47,7 +46,7 @@ library(furrr)
 library(rmapshaper)
 library(magick)
 library(magrittr) 
-library(mapsf)
+#library(mapsf)
 library(potential) 
 library(sp)
 library(kableExtra)
@@ -254,7 +253,7 @@ populationsp <- sf::st_as_sf(population, coords = c("longitude", "latitude"), cr
 bv <- quantile(population$population_2020, seq(from = 0, to = 1, length.out = 9))
 # Draw the map
 # Set a color palette
-pal <- mf_get_pal(n = 9, palette = "RdPu", rev = TRUE)
+pal <- mapsf::mf_get_pal(n = 9, palette = "RdPu", rev = TRUE)
 ```
 
 
@@ -766,7 +765,7 @@ acled.data <- acled.api::acled.api(email.address = Sys.getenv("EMAIL_ADDRESS"), 
 
 acledsp <- sf::st_as_sf(acled.data, coords = c("longitude", "latitude"), crs = 4326)  %>%
  # find points within polygons
- st_join(., polyLevel2_sf, join = st_within) 
+ sf::st_join(., polyLevel2_sf, join = sf::st_within) 
 
 
 # levels(as.factor(acled.data$event_type))
@@ -776,11 +775,11 @@ event <- as.data.frame(unique(acled.data[ ,c("event_type","sub_event_type")]))
 #View(acled.data[ acled.data$sub_event_type == "Sexual violence", ])
 
 polyLevel2_sf <- polyLevel2_sf %>%
-  left_join(
+  dplyr::left_join(
 ## Compile some stat by admin 2
 #acled.level2 <-
   acledsp %>%
-  st_drop_geometry() %>%
+  sf::st_drop_geometry() %>%
   group_by(ADM2_PCODE) %>%
  # summarise()%>% 
   #count( sub_event_type) %>% 
@@ -791,11 +790,11 @@ polyLevel2_sf <- polyLevel2_sf %>%
   janitor::clean_names() %>%
   mutate(ADM2_PCODE = adm2_pcode  ) ,
  by = "ADM2_PCODE")%>%
-  left_join(
+  dplyr::left_join(
 ## Compile some stat by admin 2
 #acled.level2 <-
   acledsp %>%
-  st_drop_geometry() %>%
+  sf::st_drop_geometry() %>%
   group_by(ADM2_PCODE) %>%
  # summarise()%>% 
    dplyr::count( sub_event_type) %>% 
@@ -1014,7 +1013,7 @@ mapsf::mf_credits(txt = "Source: ACLED - aggregated data per level 2 since 2018"
 # 
 # 
 # # Set a color palette
-# pal <- mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
+# pal <- mapsf::mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
 # 
 # mapsf::mf_init(acledcontour)
 # mapsf::mf_map(ocean, 
@@ -1106,11 +1105,11 @@ wealthsp <- sf::st_as_sf(wealth, coords = c("longitude", "latitude"), crs = 4326
 
 ##plot(sf::st_geometry(wealthsp))
 polyLevel2_sf <- polyLevel2_sf %>%
-  left_join(
+  dplyr::left_join(
 # find points within polygons
 wealth_in_level2 <-
-       st_join(wealthsp, polyLevel2_sf, join = st_within) %>%
-       st_drop_geometry() %>%
+       sf::st_join(wealthsp, polyLevel2_sf, join = sf::st_within) %>%
+       sf::st_drop_geometry() %>%
                     group_by(ADM2_PCODE) %>%
                     summarise(rwi_avg =  mean(rwi ),
                               rwi_sd =  sd(rwi ),
@@ -1169,7 +1168,7 @@ wealth_in_level2 <-
 bv <- quantile(wealth$rwi, seq(from = 0, to = 1, length.out = 5))
 # Draw the map
 # Set a color palette
-pal <- mf_get_pal(n = 5, 
+pal <- mapsf::mf_get_pal(n = 5, 
                   #palette = "Burg", 
                   pal = c("Reds 2", "Greens"),
                 rev = TRUE)
@@ -1230,7 +1229,7 @@ bks <- sort(unique(c(wealthcontour$min, wealthcontour$max)))
 
 
 # Set a color palette
-pal <- mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
+pal <- mapsf::mf_get_pal(n = 9, palette = "Burg", rev = TRUE)  
 ```
 
 ```{r echo = FALSE, message = FALSE, warning = FALSE}  
@@ -1331,7 +1330,7 @@ country_sci <-  sci_dat   %>%
   summarise( world1000 =n(),  
                maxsciworld1000 =max(scaled_sci, na.rm=TRUE)) %>% 
   
-    left_join( sci_dat   %>% 
+    dplyr::left_join( sci_dat   %>% 
     filter(str_detect(user_loc, "SLV")) %>% 
     filter(str_detect(fr_loc, "USA")) %>% 
     filter(scaled_sci > 1000 ) %>% 
@@ -1347,7 +1346,7 @@ country_sci <-  sci_dat   %>%
                               
 
 polyLevel2_sf <- polyLevel2_sf %>% 
-  left_join(country_sci ,  by = "ADM1_PCODE")
+  dplyr::left_join(country_sci ,  by = "ADM1_PCODE")
   
 
 ```
@@ -1969,7 +1968,7 @@ subindicator <- data.frame(
 
 
 indic <- polyLevel2_sf %>%
-       st_drop_geometry() %>%
+       sf::st_drop_geometry() %>%
        as.data.frame()  %>%
    #mutate( row.names() = ADM2_PCODE) %>%
   
@@ -2500,34 +2499,34 @@ this.indic.matrix.norm4.melt <- reshape::melt(as.matrix(this.indic.matrix.norm4)
 
 
 #Make plot
-ggplot(this.indic.matrix.norm4.melt, aes(x = X2,
-                                                 y = value,
-                                                 color = X1,
-                                                 group = X1)) +
-  geom_line(size = 2) +
-  # scale_colour_manual(values = c("#8dd3c7","#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C",
-  #                                "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00", "#CAB2D6",
-  #                                "#6A3D9A", "#fb8072", "#B15928", "#fdb462","#ccebc5",
-  #                                "#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
-  #                                "#0072B2", "#D55E00", "#CC79A7")) + ## as many color as locations.. 23
-  ggrepel::geom_text_repel(
-    data = this.indic.matrix.norm4.melt[ this.indic.matrix.norm4.melt$Var2 == "Wroclaw", ],
-    aes(label = X1),
-    arrow = arrow(length = unit(0.03, "npc"), type = "closed", ends = "first"),
-    direction =	"y",
-    size = 4,
-    nudge_x = 45 ) +
-  labs(title = paste0("Rank for Composite Indicator on ",  this.dimension ),
-       subtitle = "Based on various weighting approach") +
-  theme( plot.title = element_text(size = 13),
-         plot.subtitle = element_text(size = 11),
-         plot.caption = element_text(size = 7, hjust = 1),
-         axis.text = element_text(size = 10),
-         strip.text.x = element_text(size = 11),
-         panel.grid.major.x = element_line(color = "#cbcbcb"),
-         panel.grid.major.y = element_blank(),
-         axis.text.x = element_text(angle = 45, hjust = 1),
-         legend.position = "none")
+# ggplot(this.indic.matrix.norm4.melt, aes(x = X2,
+#                                                  y = value,
+#                                                  color = X1,
+#                                                  group = X1)) +
+#   geom_line(size = 2) +
+#   # scale_colour_manual(values = c("#8dd3c7","#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C",
+#   #                                "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00", "#CAB2D6",
+#   #                                "#6A3D9A", "#fb8072", "#B15928", "#fdb462","#ccebc5",
+#   #                                "#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+#   #                                "#0072B2", "#D55E00", "#CC79A7")) + ## as many color as locations.. 23
+#   ggrepel::geom_text_repel(
+#     data = this.indic.matrix.norm4.melt[ this.indic.matrix.norm4.melt$Var2 == "Wroclaw", ],
+#     aes(label = X1),
+#     arrow = arrow(length = unit(0.03, "npc"), type = "closed", ends = "first"),
+#     direction =	"y",
+#     size = 4,
+#     nudge_x = 45 ) +
+#   labs(title = paste0("Rank for Composite Indicator on ",  this.dimension ),
+#        subtitle = "Based on various weighting approach") +
+#   theme( plot.title = element_text(size = 13),
+#          plot.subtitle = element_text(size = 11),
+#          plot.caption = element_text(size = 7, hjust = 1),
+#          axis.text = element_text(size = 10),
+#          strip.text.x = element_text(size = 11),
+#          panel.grid.major.x = element_line(color = "#cbcbcb"),
+#          panel.grid.major.y = element_blank(),
+#          axis.text.x = element_text(angle = 45, hjust = 1),
+#          legend.position = "none")
 
 
 
@@ -2673,5 +2672,47 @@ mapsf::mf_credits(txt = "Source: Multiple Indicators aggregated at level 2",
 
 
  
+```{r, message=FALSE, warning=FALSE, fig.height= 10, fig.width= 10}
+
+## Color scale - https://developer.r-project.org/Blog/public/2019/04/01/hcl-based-color-palettes-in-grdevices/
+
+mapsf::mf_init(polyLevel2_sf)
+
+mapsf::mf_map(polyLevel2_sf, 
+              add = TRUE, 
+              lwd = 0.5, 
+              border = "#93A3AB", 
+              col = "#FFFFFF")
+mapsf::mf_map(ocean, 
+              col = "#B3D8F0", 
+              border = NA, 
+              add = TRUE)
+
+mapsf::mf_typo( 
+  x = polyLevel2_sf, 
+  var = c( "quint2"),
+  border = "tomato4",
+  alpha = .8,
+  col_na = "grey", 
+  pal = "Inferno",
+  lwd = 1,
+  leg_pos =  "bottomleft",
+  leg_title =  "Severity Index",
+  leg_title_cex = c(0.9),
+  leg_val_cex = c(.7),
+  #val_order = c("Prefecture", "Sub-prefecture", "Simple municipality"),
+  leg_no_data = "No dada",
+  leg_frame = c(TRUE),
+  add = TRUE
+)
+
+# Set a layout
+mapsf::mf_title(txt = "Areas Characterisation - El Salvador", 
+                fg = "#FFFFFF")
+mapsf::mf_credits(txt = "Source: Multiple Indicators aggregated at level 2",
+                   bg = "#ffffff80") 
+
+
+```
  
 
